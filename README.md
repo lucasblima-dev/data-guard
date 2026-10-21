@@ -172,7 +172,7 @@ Se o servidor Ollama estiver inacessível (ex.: desenvolvedor fora da universida
 
 ## Mapeamento dos Módulos da Disciplina
 
-Para atender rigorosamente ao cronograma incremental da UERN, o projeto é versionado com tags e branches específicas para cada entrega:
+Para atender rigorosamente ao cronograma, o projeto é versionado com tags e branches específicas para cada entrega:
 
 ```mermaid
 flowchart LR
@@ -186,23 +186,6 @@ flowchart LR
 - **Entregável:** API base (`Analysis Service`) publicada em nuvem com banco de dados remoto gerenciado (PostgreSQL via Render/Neon/Supabase).
 - **Entidade Central:** CRUD completo e ciclo de vida do recurso `AnalysisJob`.
 - **Artefatos:** Roteiro de testes documentado (`curl` / Postman) e vídeo demonstrativo da aplicação respondendo publicamente.
-
-### Módulo 2: Serviços e Microsserviços
-
-- **Entregável:** Decomposição da solução em 3 serviços independentes e frontend desacoplado.
-- **Comunicação:** Chamadas síncronas HTTP entre os serviços com tratamento de erros (timeouts e fallbacks amigáveis).
-- **Artefatos:** Diagrama arquitetural detalhado dos fluxos e documentação dos contratos de interface.
-
-### Módulo 3: Containers
-
-- **Entregável:** Empacotamento de todos os componentes através de `Dockerfile` em camadas otimizadas e orquestração de ambiente por `docker-compose.yml`.
-- **Persistência:** Volumes declarativos para PostgreSQL e arquivos locais, garantindo retenção de dados após ciclos de `docker compose down` e `docker compose up`.
-- **Artefatos:** Guia comparativo entre execução bare-metal/deploy direto e execução conteinerizada.
-
-### Módulo 4: Mensageria e Streaming de Eventos
-
-- **Entregável:** Integração com RabbitMQ orquestrado em container (`rabbitmq:3-management`), demonstrando publicação e consumo do evento `analysis.requested` -> `analysis.quality.completed` -> `analysis.completed`.
-- **Estudo Comparativo:** Artigo técnico de comparação conceitual e prática entre mensageria tradicional (RabbitMQ) e streaming de logs particionados (Apache Kafka / Redpanda).
 
 ---
 
@@ -237,14 +220,12 @@ data-guard/
 ├── .gitignore                          # Regras de exclusão de arquivos e diretórios
 │
 ├── docs/                               # Documentação técnica e acadêmica
-│   ├── ARQUITETURA.md                  # Especificação profunda da arquitetura distribuída
-│   └── Projeto-Incremental_3UND-SD.pdf # Diretrizes oficiais da disciplina (UERN)
+│   └── ARQUITETURA.md                  # Especificação profunda da arquitetura distribuída
 │
 ├── frontend/                           # Aplicação Web SPA desacoplada
 │   ├── Dockerfile                      # Multi-stage build (Vite -> Nginx)
 │   ├── package.json
 │   ├── vite.config.ts
-│   ├── tailwind.config.js
 │   ├── tsconfig.json
 │   └── src/
 │       ├── api/                        # Cliente de integração com o analysis-service

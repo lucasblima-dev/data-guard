@@ -1,16 +1,32 @@
+import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.v1 import v1_router
 from app.config import settings
+from app.database import init_db
+
+logging.basicConfig(level=settings.LOG_LEVEL)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Application lifespan manager for startup and shutdown hooks."""
+    logger.info("Iniciando DataGuard Analysis Service...")
+    try:
+        await init_db()
+        logger.info("Tabelas do banco de dados verificadas/inicializadas com sucesso.")
+    except Exception as exc:
+        logger.warning(
+            "Não foi possível conectar ao banco de dados no momento da inicialização: %s. "
+            "A aplicação continuará rodando para healthchecks e reconectará sob demanda.",
+            exc,
+        )
     yield
+    logger.info("Encerrando DataGuard Analysis Service...")
 
 
 app = FastAPI(
@@ -30,6 +46,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# registra as rotas da v1 com prefixo /api
+app.include_router(v1_router, prefix="/api")
 
 
 @app.get(

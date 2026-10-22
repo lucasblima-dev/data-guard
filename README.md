@@ -43,6 +43,8 @@ O **DataGuard** é uma plataforma distribuída voltada para inspeção automatiz
 
 O sistema resolve a fricção manual na auditoria de dados: ao receber um conjunto de dados, processa métricas estatísticas determinísticas (valores nulos, discrepâncias de tipos, duplicatas, distribuições e anomalias numéricas), consolida achados com evidências rastreáveis e disponibiliza um relatório técnico enriquecido com insights explicativos gerados por inteligência artificial (com suporte híbrido a Hugging Face Serverless ou servidor local Ollama com aceleração por GPU via rede interna).
 
+> Link para acesso do vídeo da aplicação: [Drive](https://drive.google.com/drive/folders/1bpTWVVEwc29gwO0NFA7Wx9M-6civY-Df?usp=sharing)
+
 ### Princípios Norteadores
 
 - **Cálculo Determinístico Obrigatório:** Estatísticas, contagens, métricas e detecções são processadas via código (Pandas/NumPy) e nunca delegadas a modelos probabilísticos.
@@ -172,7 +174,7 @@ Se o servidor Ollama estiver inacessível (ex.: desenvolvedor fora da universida
 
 ## Mapeamento dos Módulos da Disciplina
 
-Para atender rigorosamente ao cronograma incremental da UERN, o projeto é versionado com tags e branches específicas para cada entrega:
+Para atender rigorosamente ao cronograma, o projeto é versionado com tags e branches específicas para cada entrega:
 
 ```mermaid
 flowchart LR
@@ -185,24 +187,19 @@ flowchart LR
 
 - **Entregável:** API base (`Analysis Service`) publicada em nuvem com banco de dados remoto gerenciado (PostgreSQL via Render/Neon/Supabase).
 - **Entidade Central:** CRUD completo e ciclo de vida do recurso `AnalysisJob`.
-- **Artefatos:** Roteiro de testes documentado (`curl` / Postman) e vídeo demonstrativo da aplicação respondendo publicamente.
+- **URL Pública da Aplicação:** `https://seu-servico.onrender.com` *(Atualizar com a URL gerada no deploy)*
+- **Vídeo de Demonstração (YouTube):** `https://youtu.be/SEU_VIDEO_AQUI` *(Publicar como Não Listado)*
+- **Execução dos Testes Automatizados da API (cURL / PowerShell):**
 
-### Módulo 2: Serviços e Microsserviços
+  ```powershell
+  # Execução local contra o servidor em desenvolvimento:
+  .\scripts\test_api.ps1
 
-- **Entregável:** Decomposição da solução em 3 serviços independentes e frontend desacoplado.
-- **Comunicação:** Chamadas síncronas HTTP entre os serviços com tratamento de erros (timeouts e fallbacks amigáveis).
-- **Artefatos:** Diagrama arquitetural detalhado dos fluxos e documentação dos contratos de interface.
+  # Execução remota contra a aplicação publicada na nuvem:
+  .\scripts\test_api.ps1 -BaseUrl "https://seu-servico.onrender.com"
+  ```
 
-### Módulo 3: Containers
-
-- **Entregável:** Empacotamento de todos os componentes através de `Dockerfile` em camadas otimizadas e orquestração de ambiente por `docker-compose.yml`.
-- **Persistência:** Volumes declarativos para PostgreSQL e arquivos locais, garantindo retenção de dados após ciclos de `docker compose down` e `docker compose up`.
-- **Artefatos:** Guia comparativo entre execução bare-metal/deploy direto e execução conteinerizada.
-
-### Módulo 4: Mensageria e Streaming de Eventos
-
-- **Entregável:** Integração com RabbitMQ orquestrado em container (`rabbitmq:3-management`), demonstrando publicação e consumo do evento `analysis.requested` -> `analysis.quality.completed` -> `analysis.completed`.
-- **Estudo Comparativo:** Artigo técnico de comparação conceitual e prática entre mensageria tradicional (RabbitMQ) e streaming de logs particionados (Apache Kafka / Redpanda).
+  *(Em ambientes Linux/macOS, utilize `./scripts/test_api.sh`)*
 
 ---
 
@@ -233,18 +230,21 @@ data-guard/
 ├── README.md                           # Visão geral, setup e guia de avaliação
 ├── AGENTS.md                           # Diretrizes técnicas para agentes de IA e devs
 ├── docker-compose.yml                  # Orquestração do ambiente completo
+├── render.yaml                         # Blueprint de deploy em nuvem (Render)
 ├── .env.example                        # Modelo de configuração de variáveis de ambiente
 ├── .gitignore                          # Regras de exclusão de arquivos e diretórios
 │
+├── scripts/                            # Scripts utilitários e testes automatizados
+│   ├── test_api.ps1                    # Script PowerShell para testes do CRUD
+│   └── test_api.sh                     # Script Bash/cURL para ambientes Unix
+│
 ├── docs/                               # Documentação técnica e acadêmica
-│   ├── ARQUITETURA.md                  # Especificação profunda da arquitetura distribuída
-│   └── Projeto-Incremental_3UND-SD.pdf # Diretrizes oficiais da disciplina (UERN)
+│   └── ARQUITETURA.md                  # Especificação profunda da arquitetura distribuída
 │
 ├── frontend/                           # Aplicação Web SPA desacoplada
 │   ├── Dockerfile                      # Multi-stage build (Vite -> Nginx)
 │   ├── package.json
 │   ├── vite.config.ts
-│   ├── tailwind.config.js
 │   ├── tsconfig.json
 │   └── src/
 │       ├── api/                        # Cliente de integração com o analysis-service
@@ -329,7 +329,7 @@ data-guard/
 
 O arquivo `.env` controla os parâmetros de execução e permite alternar instantaneamente o provedor de inteligência artificial:
 
-### Cenário 1: Uso com Hugging Face (Nuvem / Sem GPU Local)
+### Cenário 1: Uso com Hugging Face (Nuvem / Sem GPU)
 
 ```dotenv
 LLM_ENABLED=true
@@ -338,7 +338,7 @@ HF_TOKEN=hf_seuTokenAqui
 HF_MODEL_ID=Qwen/Qwen2.5-7B-Instruct
 ```
 
-### Cenário 2: Uso com Servidor Ollama na Rede Local (Universidade com GPU)
+### Cenário 2: Uso com Servidor Ollama na Rede Local (com GPU)
 
 ```dotenv
 LLM_ENABLED=true

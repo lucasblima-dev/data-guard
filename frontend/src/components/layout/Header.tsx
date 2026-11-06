@@ -3,6 +3,7 @@ import { History, Upload } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { tweenEnter, tweenSnap } from "../../lib/motion";
 import { Wordmark } from "../brand/Logo";
+import { ThemeToggle } from "../ui/ThemeToggle";
 
 const links = [
   { to: "/", label: "Histórico", icon: History, end: true },
@@ -49,6 +50,7 @@ export function Header() {
               )}
             </NavLink>
           ))}
+          <ThemeToggle compact />
         </nav>
       </div>
     </motion.header>

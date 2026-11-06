@@ -19,7 +19,7 @@ export function Wordmark() {
     <span className="flex items-center gap-2.5">
       <LogoMark className="size-[19px] text-fg" />
       <span className="text-sm font-semibold tracking-tight">
-        Data<span className="text-accent">Guard</span>
+        Data<span className="text-accent-ink">Guard</span>
       </span>
     </span>
   );

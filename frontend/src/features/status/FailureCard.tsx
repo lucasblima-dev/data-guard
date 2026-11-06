@@ -35,7 +35,7 @@ export function FailureCard({ job }: { job: AnalysisJob }) {
             </p>
           )}
           <div>
-            <Link to="/upload" className="text-sm text-accent hover:underline">
+            <Link to="/upload" className="text-sm text-accent-ink hover:underline">
               Enviar outro arquivo
             </Link>
           </div>

@@ -13,7 +13,7 @@ export function ExecutiveSummary({ report }: { report: QualityReport }) {
         <h3 className="text-sm font-medium">Resumo executivo</h3>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-2xs text-fg-muted">
           {assisted ? (
-            <Cpu className="size-3 text-accent" strokeWidth={1.75} />
+            <Cpu className="size-3 text-accent-ink" strokeWidth={1.75} />
           ) : (
             <ShieldCheck className="size-3" strokeWidth={1.75} />
           )}
@@ -36,7 +36,7 @@ export function InsightCards({ report }: { report: QualityReport }) {
               <p className="data text-2xs text-fg-subtle">{insight.finding_code}</p>
               <p className="text-sm leading-relaxed text-fg-muted">{insight.interpretation}</p>
               <p className="mt-auto rounded-xl border border-accent/20 bg-accent/[0.07] p-3 text-xs leading-relaxed">
-                <span className="mb-1 block text-2xs font-medium uppercase tracking-wider text-accent">Ação sugerida</span>
+                <span className="mb-1 block text-2xs font-medium uppercase tracking-wider text-accent-ink">Ação sugerida</span>
                 {insight.suggested_action}
               </p>
             </Card>

@@ -120,7 +120,7 @@ export function UploadPage() {
             <ol className="mt-5 space-y-4">
               {pipeline.map((step, i) => (
                 <li key={step.label} className="flex items-start gap-3">
-                  <span className="data mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-accent/10 text-2xs text-accent ring-1 ring-inset ring-accent/20">
+                  <span className="data mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-accent/10 text-2xs text-accent-ink ring-1 ring-inset ring-accent/20">
                     {i + 1}
                   </span>
                   <div>

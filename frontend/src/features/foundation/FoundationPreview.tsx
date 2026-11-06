@@ -33,7 +33,7 @@ export function FoundationPreview() {
   return (
     <motion.div variants={stagger()} initial="hidden" animate="show" className="space-y-12">
       <motion.div variants={fadeUp} className="space-y-2">
-        <p className="data text-2xs uppercase tracking-wider text-accent">fundação visual · somente dev</p>
+        <p className="data text-2xs uppercase tracking-wider text-accent-ink">fundação visual · somente dev</p>
         <h1 className="text-2xl font-semibold tracking-tighter">Identidade lima</h1>
         <p className="max-w-xl text-sm text-fg-muted">
           Preto profundo, lima elétrico e dados em fonte monoespaçada.

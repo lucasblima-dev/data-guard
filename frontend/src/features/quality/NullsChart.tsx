@@ -26,7 +26,7 @@ export function NullsChart({ profile }: { profile: DatasetProfile }) {
               tick={{ fill: "var(--color-fg-muted)", fontSize: 11, fontFamily: "var(--font-mono)" }}
             />
             <Tooltip
-              cursor={{ fill: "rgb(255 255 255 / 0.04)" }}
+              cursor={{ fill: "color-mix(in oklab, var(--color-fg) 6%, transparent)" }}
               formatter={(v) => [`${String(v).replace(".", ",")}%`, "Nulos"]}
               contentStyle={{
                 background: "var(--color-surface-solid)",

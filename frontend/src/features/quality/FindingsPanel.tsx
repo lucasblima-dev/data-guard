@@ -44,7 +44,7 @@ export function FindingsPanel({ findings }: { findings: QualityFinding[] }) {
                     <Badge tone={meta.tone}>{meta.label}</Badge>
                   </div>
                   {f.target_column && (
-                    <p className="data mt-1 text-2xs text-accent/80">{f.target_column}</p>
+                    <p className="data mt-1 text-2xs text-accent-ink/80">{f.target_column}</p>
                   )}
                   <p className="mt-1.5 text-xs leading-relaxed text-fg-muted">{f.description}</p>
                   {f.evidence && <p className="data mt-1.5 text-2xs text-fg-subtle">{f.evidence}</p>}

@@ -3,7 +3,8 @@
 @import "@fontsource-variable/jetbrains-mono";
 
 /* ------------------------------------------------------------------
- * Identidade: preto profundo + lima eletrico. Produto escuro-only.
+ * Identidade: preto profundo + lima eletrico. Tema escuro por padrao;
+ * o claro e ativado por data-theme="light" no <html> (ver lib/theme.ts).
  * ------------------------------------------------------------------ */
 :root {
   --dg-canvas: #0a0a0b;
@@ -16,10 +17,45 @@
   --dg-fg-muted: #9a9b95;
   --dg-fg-subtle: #5f605b;
   --dg-accent: #d6ff3d;
+  /* Lima usado como TEXTO/icone sobre a superficie (no claro vira oliva, legivel). */
+  --dg-accent-ink: #d6ff3d;
   --dg-accent-fg: #11150a;
   --dg-ring: rgb(214 255 61 / 0.4);
   --dg-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 20px 40px -26px rgb(0 0 0 / 0.85);
+  --dg-glow: 7%;
+  --dg-grain: 0.045;
+  --dg-grain-filter: none;
   color-scheme: dark;
+}
+
+/* Tema claro: papel quente, tinta quase preta e o mesmo lima, mais saturado. */
+:root[data-theme="light"] {
+  --dg-canvas: #f4f4f0;
+  --dg-surface: rgb(255 255 255 / 0.9);
+  --dg-surface-raised: rgb(255 255 255 / 0.97);
+  --dg-surface-solid: #ffffff;
+  --dg-line: rgb(0 0 0 / 0.09);
+  --dg-line-strong: rgb(0 0 0 / 0.16);
+  --dg-fg: #12130f;
+  --dg-fg-muted: #565750;
+  --dg-fg-subtle: #6c6d66;
+  --dg-accent: #b9ea00;
+  --dg-accent-ink: #4a6300;
+  --dg-accent-fg: #11150a;
+  --dg-ring: rgb(74 99 0 / 0.5);
+  --dg-shadow: inset 0 1px 0 rgb(255 255 255 / 0.9), 0 16px 32px -24px rgb(24 32 0 / 0.28);
+  --dg-glow: 22%;
+  --dg-grain: 0.06;
+  --dg-grain-filter: invert(1);
+
+  /* Status mais escuros: o tom neon do tema escuro nao tem contraste sobre fundo claro. */
+  --color-ok: #0b7a4b;
+  --color-warn: #9a5700;
+  --color-danger: #c92a2a;
+  --color-info: #1d5fd1;
+  --color-progress: #5b3fd0;
+  --color-signal-cyan: #0a7f9c;
+  color-scheme: light;
 }
 
 @theme inline {
@@ -36,6 +72,7 @@
   --color-fg-muted: var(--dg-fg-muted);
   --color-fg-subtle: var(--dg-fg-subtle);
   --color-accent: var(--dg-accent);
+  --color-accent-ink: var(--dg-accent-ink);
   --color-accent-fg: var(--dg-accent-fg);
   --color-ring: var(--dg-ring);
 }
@@ -125,6 +162,7 @@
 @utility bg-grain {
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
   background-size: 180px 180px;
+  filter: var(--dg-grain-filter);
 }
 
 /* ------------------------------------------------------------------

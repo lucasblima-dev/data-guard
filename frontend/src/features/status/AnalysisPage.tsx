@@ -63,7 +63,7 @@ export function AnalysisPage() {
         text={notFound ? "Análise não encontrada." : error.message}
         action={
           notFound ? (
-            <Link to="/" className="text-sm text-accent hover:underline">
+            <Link to="/" className="text-sm text-accent-ink hover:underline">
               Voltar ao histórico
             </Link>
           ) : (

@@ -4,6 +4,7 @@ import { NavLink } from "react-router-dom";
 import { MOCKS_ENABLED } from "../../api/mocks";
 import { tweenSnap } from "../../lib/motion";
 import { Wordmark } from "../brand/Logo";
+import { ThemeToggle } from "../ui/ThemeToggle";
 
 const links = [
   { to: "/", label: "Histórico", icon: History, end: true },
@@ -47,8 +48,10 @@ export function Sidebar() {
         ))}
       </nav>
 
+      <div className="mt-auto space-y-3">
+        <ThemeToggle />
       {MOCKS_ENABLED && (
-        <div className="glass mt-auto rounded-2xl p-4">
+        <div className="glass rounded-2xl p-4">
           <p className="flex items-center gap-2 text-xs font-medium">
             <span className="size-1.5 rounded-full bg-warn" />
             Modo simulado
@@ -58,6 +61,7 @@ export function Sidebar() {
           </p>
         </div>
       )}
+      </div>
     </aside>
   );
 }

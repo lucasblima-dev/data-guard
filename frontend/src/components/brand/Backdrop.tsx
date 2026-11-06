@@ -8,10 +8,10 @@ export function Backdrop() {
       <div
         className="absolute -bottom-56 -right-56 size-[760px] rounded-full"
         style={{
-          background: "radial-gradient(closest-side, color-mix(in oklab, var(--dg-accent) 7%, transparent), transparent)",
+          background: "radial-gradient(closest-side, color-mix(in oklab, var(--dg-accent) var(--dg-glow), transparent), transparent)",
         }}
       />
-      <div className="bg-grain absolute inset-0 opacity-[0.045]" />
+      <div className="bg-grain absolute inset-0" style={{ opacity: "var(--dg-grain)" }} />
     </div>
   );
 }

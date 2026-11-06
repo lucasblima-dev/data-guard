@@ -123,7 +123,7 @@ export function HistoryPage() {
                 {query || status ? "Nenhuma auditoria encontrada com esses filtros." : "Nenhuma auditoria enviada ainda."}
               </p>
               {!query && !status && (
-                <Link to="/upload" className="text-sm text-accent hover:underline">
+                <Link to="/upload" className="text-sm text-accent-ink hover:underline">
                   Enviar o primeiro CSV
                 </Link>
               )}

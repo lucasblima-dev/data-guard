@@ -82,7 +82,7 @@ export function Dropzone({ file, disabled = false, onSelect, onClear }: Dropzone
           animate={{ y: dragging ? -6 : 0, scale: dragging ? 1.1 : 1 }}
           transition={springSnappy}
           className={`relative grid size-16 place-items-center rounded-2xl ring-1 ring-inset transition-colors duration-150 ${
-            dragging ? "bg-accent text-accent-fg ring-transparent" : "bg-accent/10 text-accent ring-accent/20"
+            dragging ? "bg-accent text-accent-fg ring-transparent" : "bg-accent/10 text-accent-ink ring-accent/20"
           }`}
         >
           <UploadCloud className="size-7" strokeWidth={1.5} />
@@ -91,7 +91,7 @@ export function Dropzone({ file, disabled = false, onSelect, onClear }: Dropzone
         <div className="relative space-y-1">
           <p className="text-sm font-medium">{dragging ? "Solte para selecionar" : "Arraste seu dataset aqui"}</p>
           <p className="text-xs text-fg-subtle">
-            ou <span className="text-accent">escolha do computador</span> · CSV até 100 MB
+            ou <span className="text-accent-ink">escolha do computador</span> · CSV até 100 MB
           </p>
         </div>
 

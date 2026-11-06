@@ -73,7 +73,7 @@ export function HistoryTable({ items }: { items: AnalysisJob[] }) {
               <td className="px-6 py-5 text-right">
                 <Link
                   to={`/analyses/${job.id}`}
-                  className="focus-ring inline-flex items-center gap-1 rounded-control text-sm text-fg-muted transition-colors group-hover:text-accent"
+                  className="focus-ring inline-flex items-center gap-1 rounded-control text-sm text-fg-muted transition-colors group-hover:text-accent-ink"
                 >
                   {actionLabel(job)}
                   <ArrowUpRight

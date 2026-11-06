@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
+import { HistoryPage } from "./features/history/HistoryPage";
 import { PagePlaceholder } from "./components/layout/PagePlaceholder";
 
 export function App() {
@@ -7,10 +8,7 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route element={<AppLayout />}>
-          <Route
-            index
-            element={<PagePlaceholder title="Histórico" description="Auditorias submetidas e seus status." />}
-          />
+          <Route index element={<HistoryPage />} />
           <Route
             path="upload"
             element={<PagePlaceholder title="Nova análise" description="Envie um CSV para iniciar a auditoria." />}

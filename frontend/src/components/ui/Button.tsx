@@ -9,7 +9,7 @@ interface ButtonProps extends HTMLMotionProps<"button"> {
 
 const variants: Record<Variant, string> = {
   primary:
-    "bg-accent text-accent-fg shadow-[0_1px_0_rgb(255_255_255/0.2)_inset,0_6px_16px_-6px_var(--color-accent)] hover:brightness-110",
+    "bg-accent text-accent-fg shadow-[0_0_24px_-8px_var(--color-accent)] hover:brightness-105",
   ghost: "text-fg-muted hover:text-fg hover:bg-fg/5",
   glass: "glass text-fg hover:border-line-strong",
 };
@@ -18,7 +18,7 @@ export function Button({ variant = "glass", className = "", ...rest }: ButtonPro
   return (
     <motion.button
       {...press}
-      className={`focus-ring inline-flex h-8 items-center justify-center gap-2 rounded-control px-3 text-sm font-medium transition-[color,background-color,filter] disabled:pointer-events-none disabled:opacity-50 ${variants[variant]} ${className}`}
+      className={`focus-ring inline-flex h-9 items-center justify-center gap-2 rounded-full px-4 text-sm font-medium transition-[color,background-color,filter] duration-150 disabled:pointer-events-none disabled:opacity-50 ${variants[variant]} ${className}`}
       {...rest}
     />
   );

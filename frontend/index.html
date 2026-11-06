@@ -3,16 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark light" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0a0a0b" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>DataGuard</title>
-    <script>
-      try {
-        var s = localStorage.getItem("dg-theme");
-        var m = s ? s === "light" : window.matchMedia("(prefers-color-scheme: light)").matches;
-        document.documentElement.classList.toggle("light", m);
-        document.documentElement.classList.toggle("dark", !m);
-      } catch (e) {}
-    </script>
   </head>
   <body>
     <div id="root"></div>

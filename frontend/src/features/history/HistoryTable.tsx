@@ -50,8 +50,10 @@ export function HistoryTable({ items }: { items: AnalysisJob[] }) {
             >
               <td className="px-6 py-5">
                 <div className="flex items-center gap-3">
-                  <FileSpreadsheet className="size-4 shrink-0 text-fg-subtle" strokeWidth={1.5} />
-                  <span className="max-w-[16rem] truncate text-sm font-medium" title={job.original_filename}>
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-fg/[0.05] text-fg-muted">
+                    <FileSpreadsheet className="size-4" strokeWidth={1.5} />
+                  </span>
+                  <span className="data max-w-[16rem] truncate text-sm" title={job.original_filename}>
                     {job.original_filename}
                   </span>
                 </div>

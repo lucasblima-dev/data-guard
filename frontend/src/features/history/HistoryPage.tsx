@@ -1,21 +1,31 @@
+import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Inbox, Search, TriangleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { PageHeader } from "../../components/layout/PageHeader";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { useAnalysesList } from "../../hooks/useAnalysesList";
+import { tweenSnap } from "../../lib/motion";
 import { jobStatusMeta } from "../../lib/status";
 import type { JobStatus } from "../../types/analysis";
 import { HistoryTable } from "./HistoryTable";
 import { StatsRow } from "./StatsRow";
 
-const statusOptions = Object.entries(jobStatusMeta) as [JobStatus, { label: string }][];
+const filters: { value: JobStatus | undefined; label: string }[] = [
+  { value: undefined, label: "Todas" },
+  ...(Object.entries(jobStatusMeta) as [JobStatus, { label: string }][]).map(([value, m]) => ({
+    value,
+    label: m.label,
+  })),
+];
 
 function SkeletonRows() {
   return (
     <div className="divide-y divide-line">
       {Array.from({ length: 5 }, (_, i) => (
         <div key={i} className="flex items-center gap-6 px-6 py-5">
+          <div className="size-9 animate-pulse-soft rounded-xl bg-fg/8" />
           <div className="h-4 w-48 animate-pulse-soft rounded bg-fg/8" />
           <div className="hidden h-4 w-28 animate-pulse-soft rounded bg-fg/8 sm:block" />
           <div className="ml-auto h-4 w-20 animate-pulse-soft rounded bg-fg/8" />
@@ -41,17 +51,18 @@ export function HistoryPage() {
   const totalPages = data?.total_pages ?? 0;
 
   return (
-    <div className="space-y-12">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold tracking-tighter">Histórico</h1>
-        <p className="text-sm text-fg-muted">Todas as auditorias de dados enviadas e o estado de cada uma.</p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="auditorias"
+        title="Histórico"
+        description="Todas as auditorias de dados enviadas e o estado de cada uma."
+      />
 
       <StatsRow stats={stats} />
 
-      <section className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <label className="glass relative flex h-9 items-center gap-2 rounded-control px-3 focus-within:border-line-strong sm:w-72">
+      <Card className="overflow-hidden">
+        <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
+          <label className="flex h-9 items-center gap-2 rounded-full border border-line bg-fg/[0.03] px-3.5 focus-within:border-line-strong lg:w-72">
             <Search className="size-3.5 text-fg-subtle" strokeWidth={1.75} />
             <input
               value={query}
@@ -61,25 +72,42 @@ export function HistoryPage() {
               className="w-full bg-transparent text-sm outline-none placeholder:text-fg-subtle"
             />
           </label>
-          <select
-            value={status ?? ""}
-            onChange={(e) => {
-              setStatus((e.target.value || undefined) as JobStatus | undefined);
-              setPage(1);
-            }}
+
+          <div
+            role="group"
             aria-label="Filtrar por status"
-            className="glass focus-ring h-9 rounded-control px-3 text-sm text-fg-muted outline-none"
+            className="flex max-w-full gap-0.5 overflow-x-auto rounded-full border border-line bg-fg/[0.03] p-1"
           >
-            <option value="">Todos os status</option>
-            {statusOptions.map(([value, m]) => (
-              <option key={value} value={value} className="bg-surface-solid">
-                {m.label}
-              </option>
-            ))}
-          </select>
+            {filters.map((f) => {
+              const active = f.value === status;
+              return (
+                <button
+                  key={f.label}
+                  type="button"
+                  onClick={() => {
+                    setStatus(f.value);
+                    setPage(1);
+                  }}
+                  aria-pressed={active}
+                  className={`focus-ring relative h-7 shrink-0 rounded-full px-3 text-xs font-medium transition-colors duration-150 ${
+                    active ? "text-accent-fg" : "text-fg-muted hover:text-fg"
+                  }`}
+                >
+                  {active && (
+                    <motion.span
+                      layoutId="status-chip"
+                      transition={tweenSnap}
+                      className="absolute inset-0 rounded-full bg-accent"
+                    />
+                  )}
+                  <span className="relative">{f.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        <Card className="overflow-hidden">
+        <div className="border-t border-line">
           {loading && !data ? (
             <SkeletonRows />
           ) : error && !data ? (
@@ -103,12 +131,12 @@ export function HistoryPage() {
           ) : (
             <HistoryTable key={`${page}-${status ?? "all"}`} items={items} />
           )}
-        </Card>
+        </div>
 
         {totalPages > 1 && (
-          <div className="flex items-center justify-between text-xs text-fg-subtle">
-            <span className="tabular-nums">
-              Página {data?.page} de {totalPages}
+          <div className="flex items-center justify-between border-t border-line px-4 py-3 text-xs text-fg-subtle">
+            <span className="data">
+              página {data?.page} de {totalPages}
             </span>
             <div className="flex gap-2">
               <Button variant="glass" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
@@ -122,7 +150,7 @@ export function HistoryPage() {
             </div>
           </div>
         )}
-      </section>
+      </Card>
     </div>
   );
 }

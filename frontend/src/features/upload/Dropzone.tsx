@@ -60,7 +60,7 @@ export function Dropzone({ file, disabled = false, onSelect, onClear }: Dropzone
         onDrop={onDrop}
         animate={{ scale: dragging ? 1.015 : 1 }}
         transition={springSoft}
-        className="focus-ring glass relative flex min-h-64 cursor-pointer flex-col items-center justify-center gap-4 overflow-hidden rounded-card border-dashed px-6 py-12 text-center"
+        className="focus-ring glass relative flex min-h-80 cursor-pointer flex-col items-center justify-center gap-5 overflow-hidden rounded-card border-dashed px-6 py-14 text-center"
       >
         {/* Borda e brilho que acendem ao arrastar */}
         <motion.div
@@ -81,15 +81,17 @@ export function Dropzone({ file, disabled = false, onSelect, onClear }: Dropzone
         <motion.div
           animate={{ y: dragging ? -6 : 0, scale: dragging ? 1.1 : 1 }}
           transition={springSnappy}
-          className="relative grid size-12 place-items-center rounded-full bg-fg/5 text-fg-muted ring-1 ring-inset ring-line"
+          className={`relative grid size-16 place-items-center rounded-2xl ring-1 ring-inset transition-colors duration-150 ${
+            dragging ? "bg-accent text-accent-fg ring-transparent" : "bg-accent/10 text-accent ring-accent/20"
+          }`}
         >
-          <UploadCloud className={`size-5 transition-colors ${dragging ? "text-accent" : ""}`} strokeWidth={1.5} />
+          <UploadCloud className="size-7" strokeWidth={1.5} />
         </motion.div>
 
         <div className="relative space-y-1">
-          <p className="text-sm font-medium">{dragging ? "Solte para selecionar" : "Arraste um arquivo CSV aqui"}</p>
+          <p className="text-sm font-medium">{dragging ? "Solte para selecionar" : "Arraste seu dataset aqui"}</p>
           <p className="text-xs text-fg-subtle">
-            ou <span className="text-accent">escolha do computador</span> · até 100 MB
+            ou <span className="text-accent">escolha do computador</span> · CSV até 100 MB
           </p>
         </div>
 

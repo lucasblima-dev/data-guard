@@ -13,7 +13,8 @@ const small = [
   { key: "failed", label: "Falhas", icon: OctagonAlert, tone: "text-danger" },
 ] as const;
 
-export function StatsRow({ stats }: { stats: AnalysesStats | null }) {
+/** `unavailable`: a consulta falhou; mostra "—" em vez de um carregamento que nunca termina. */
+export function StatsRow({ stats, unavailable = false }: { stats: AnalysesStats | null; unavailable?: boolean }) {
   const navigate = useNavigate();
   const rate = stats && stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : null;
 
@@ -37,6 +38,8 @@ export function StatsRow({ stats }: { stats: AnalysesStats | null }) {
             <p className="text-sm font-medium opacity-75">Auditorias realizadas</p>
             {stats ? (
               <CountUp plain value={stats.total} className="text-7xl font-semibold leading-none tracking-tighter" />
+            ) : unavailable ? (
+              <span className="text-7xl font-semibold leading-none tracking-tighter opacity-40">—</span>
             ) : (
               <span className="h-[4.5rem] w-24 animate-pulse-soft rounded-xl bg-black/10" />
             )}
@@ -66,6 +69,8 @@ export function StatsRow({ stats }: { stats: AnalysesStats | null }) {
             <div>
               {stats ? (
                 <CountUp value={stats[key]} className="text-3xl font-semibold tracking-tighter" />
+              ) : unavailable ? (
+                <span className="text-3xl font-semibold tracking-tighter text-fg-subtle">—</span>
               ) : (
                 <span className="inline-block h-8 w-12 animate-pulse-soft rounded-md bg-fg/8" />
               )}

@@ -58,7 +58,7 @@ export function HistoryPage() {
         description="Todas as auditorias de dados enviadas e o estado de cada uma."
       />
 
-      <StatsRow stats={stats} />
+      <StatsRow stats={stats} unavailable={!stats && !loading && error !== null} />
 
       <Card className="overflow-hidden">
         <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">

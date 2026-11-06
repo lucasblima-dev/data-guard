@@ -147,6 +147,7 @@ export function AnalysisPage() {
             <Notice
               icon={<SearchX className="size-5 text-warn" strokeWidth={1.5} />}
               text={report.error.message}
+              action={<Button onClick={report.retry}>Tentar novamente</Button>}
             />
           )}
           {!report.loading && !report.error && !details && (

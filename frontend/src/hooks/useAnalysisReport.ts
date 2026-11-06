@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getAnalysisReport } from "../api/analysesApi";
 import { ApiError } from "../api/client";
 import type { FullAnalysisDetails } from "../types/analysis";
@@ -12,6 +12,7 @@ interface State {
 /** Carrega o relatorio completo uma unica vez, quando a analise esta concluida. */
 export function useAnalysisReport(id: string, enabled: boolean) {
   const [state, setState] = useState<State>({ details: null, loading: false, error: null });
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!enabled) return;
@@ -25,7 +26,9 @@ export function useAnalysisReport(id: string, enabled: boolean) {
         setState({ details: null, loading: false, error });
       });
     return () => ctrl.abort();
-  }, [id, enabled]);
+  }, [id, enabled, attempt]);
 
-  return state;
+  const retry = useCallback(() => setAttempt((n) => n + 1), []);
+
+  return { ...state, retry };
 }

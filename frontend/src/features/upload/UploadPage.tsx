@@ -2,7 +2,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Loader2, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
 import { createAnalysis } from "../../api/analysesApi";
 import { ApiError } from "../../api/client";
 import { PageHeader } from "../../components/layout/PageHeader";
@@ -22,7 +21,7 @@ const pipeline = [
 export function UploadPage() {
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ title: string; message: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Soltar fora da area nao deve fazer o navegador abrir o arquivo.
@@ -38,7 +37,7 @@ export function UploadPage() {
 
   const handleSelect = (picked: File) => {
     const problem = validateCsv(picked);
-    setError(problem);
+    setError(problem ? { title: "Arquivo inválido", message: problem } : null);
     setFile(problem ? null : picked);
   };
 
@@ -50,8 +49,10 @@ export function UploadPage() {
       const job = await createAnalysis(file);
       navigate(`/analyses/${job.id}`);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Não foi possível enviar o arquivo.");
-      toast.error("Falha ao iniciar a auditoria");
+      setError({
+        title: "Não foi possível iniciar a auditoria",
+        message: e instanceof ApiError ? e.message : "Não foi possível enviar o arquivo.",
+      });
       setSubmitting(false);
     }
   };
@@ -78,16 +79,21 @@ export function UploadPage() {
 
           <AnimatePresence initial={false}>
             {error && (
-              <motion.p
+              <motion.div
                 role="alert"
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="flex items-start gap-2 text-sm text-danger"
+                className="flex items-start gap-4 rounded-card border border-danger/25 bg-danger/[0.06] p-5 backdrop-blur-xl"
               >
-                <TriangleAlert className="mt-0.5 size-4 shrink-0" strokeWidth={1.75} />
-                {error}
-              </motion.p>
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-danger/12 text-danger ring-1 ring-inset ring-danger/20">
+                  <TriangleAlert className="size-4" strokeWidth={1.75} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold tracking-tight">{error.title}</p>
+                  <p className="mt-1 text-sm text-fg-muted">{error.message}</p>
+                </div>
+              </motion.div>
             )}
           </AnimatePresence>
 

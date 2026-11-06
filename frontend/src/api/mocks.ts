@@ -11,7 +11,7 @@ import type {
   QualityFinding,
   QualityReport,
 } from "../types/analysis";
-import { ApiError } from "./client";
+import { ApiError, NETWORK_ERROR_MESSAGE, TIMEOUT_ERROR_MESSAGE, apiErrorFromStatus } from "./client";
 
 export const MOCKS_ENABLED = import.meta.env.VITE_USE_MOCKS !== "false";
 export const MOCK_LATENCY_MS = 2000;
@@ -105,8 +105,22 @@ function toJob(rec: MockJobRecord): AnalysisJob {
   };
 }
 
+/**
+ * Simula falhas do upload pelo nome do arquivo, para exercitar as mensagens de erro:
+ * "413", "415", "422" ou "503" (status HTTP), "rede" (sem conexao) e "timeout".
+ */
+function simulatedUploadError(filename: string): ApiError | null {
+  const status = /(?:^|[^0-9])(413|415|422|503)(?:[^0-9]|$)/.exec(filename)?.[1];
+  if (status) return apiErrorFromStatus(Number(status));
+  if (/timeout/i.test(filename)) return new ApiError(TIMEOUT_ERROR_MESSAGE, "TIMEOUT", null);
+  if (/rede/i.test(filename)) return new ApiError(NETWORK_ERROR_MESSAGE, "NETWORK_ERROR", null);
+  return null;
+}
+
 export async function mockCreateAnalysis(file: File, signal?: AbortSignal): Promise<AnalysisJob> {
   await mockDelay(MOCK_LATENCY_MS, signal);
+  const simulated = simulatedUploadError(file.name);
+  if (simulated) throw simulated;
   const rec: MockJobRecord = {
     id: crypto.randomUUID(),
     filename: file.name,

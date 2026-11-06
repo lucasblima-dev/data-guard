@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Printer, SearchX, WifiOff } from "lucide-react";
+import { ArrowLeft, SearchX, WifiOff } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
@@ -7,10 +7,9 @@ import { Card } from "../../components/ui/Card";
 import { useAnalysis } from "../../hooks/useAnalysis";
 import { useAnalysisReport } from "../../hooks/useAnalysisReport";
 import { formatBytes, formatDate, formatTime } from "../../lib/format";
+import { tweenExit } from "../../lib/motion";
 import { jobStatusMeta } from "../../lib/status";
-import { ExecutiveReport } from "../report/ExecutiveReport";
-import { FindingsTable } from "../quality/FindingsTable";
-import { QualityOverview } from "../quality/QualityOverview";
+import { ResultsDashboard } from "../quality/ResultsDashboard";
 import { FailureCard } from "./FailureCard";
 import { StatusStepper } from "./StatusStepper";
 
@@ -85,19 +84,19 @@ export function AnalysisPage() {
             <Badge tone={meta.tone} live={meta.active}>
               {meta.label}
             </Badge>
-            {done && details && (
-              <Button onClick={() => window.print()}>
-                <Printer className="size-3.5" strokeWidth={1.75} />
-                Imprimir
-              </Button>
-            )}
           </div>
         </div>
       </div>
 
-      <Card className="px-6 py-8">
-        <StatusStepper status={job.status} />
-      </Card>
+      <AnimatePresence mode="wait" initial={false}>
+        {!done && (
+          <motion.div key="stepper" exit={{ opacity: 0, transition: tweenExit }}>
+            <Card className="px-6 py-8">
+              <StatusStepper status={job.status} />
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence initial={false}>
         {error && (
@@ -130,9 +129,7 @@ export function AnalysisPage() {
               text="A análise foi concluída, mas o relatório detalhado ainda não está disponível no serviço."
             />
           )}
-          {details?.profile && <QualityOverview profile={details.profile} findings={details.findings ?? []} />}
-          {details && <FindingsTable findings={details.findings ?? []} />}
-          {details?.report && <ExecutiveReport report={details.report} />}
+          {details?.profile && <ResultsDashboard details={details} />}
         </div>
       )}
     </div>

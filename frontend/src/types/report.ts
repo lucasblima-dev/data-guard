@@ -49,4 +49,9 @@ export interface FullAnalysisDetails {
   profile?: DatasetProfile | null;
   findings?: QualityFinding[];
   report?: QualityReport | null;
+  /**
+   * Nota de saude do dataset (0-100). Deve ser calculada pelo data-quality-service;
+   * o campo ainda nao existe no backend, entao a UI degrada quando ausente.
+   */
+  health_score?: number | null;
 }

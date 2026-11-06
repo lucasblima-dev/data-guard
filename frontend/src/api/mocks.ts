@@ -258,7 +258,7 @@ export function buildMockDetails(job: AnalysisJob): FullAnalysisDetails {
     ],
   };
 
-  return { job, profile, findings, report };
+  return { job, profile, findings, report, health_score: 72 };
 }
 
 export async function mockGetAnalysisReport(id: string, signal?: AbortSignal): Promise<FullAnalysisDetails> {

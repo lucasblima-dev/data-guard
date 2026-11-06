@@ -1,7 +1,27 @@
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { AppLayout } from "./components/layout/AppLayout";
+import { PagePlaceholder } from "./components/layout/PagePlaceholder";
+
 export function App() {
   return (
-    <main className="mx-auto max-w-4xl px-6 py-12">
-      <h1 className="text-2xl font-semibold tracking-tighter">DataGuard</h1>
-    </main>
+    <BrowserRouter>
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route
+            index
+            element={<PagePlaceholder title="Histórico" description="Auditorias submetidas e seus status." />}
+          />
+          <Route
+            path="upload"
+            element={<PagePlaceholder title="Nova análise" description="Envie um CSV para iniciar a auditoria." />}
+          />
+          <Route
+            path="analyses/:id"
+            element={<PagePlaceholder title="Diagnóstico" description="Status, qualidade e relatório da análise." />}
+          />
+          <Route path="*" element={<PagePlaceholder title="Página não encontrada" description="O endereço não existe." />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }

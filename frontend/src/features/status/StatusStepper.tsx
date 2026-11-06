@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Check } from "lucide-react";
 import { easeOutExpo, springSoft } from "../../lib/motion";
 import type { JobStatus } from "../../types/analysis";
@@ -24,6 +24,9 @@ export function StatusStepper({ status }: { status: JobStatus }) {
   const failed = status === "falhou";
   const current = failed ? -1 : STEPS.findIndex((s) => s.status === status);
   const progress = failed ? 0 : (current / (STEPS.length - 1)) * 100;
+  const nextProgress = ((current + 1) / (STEPS.length - 1)) * 100;
+  const reduce = useReducedMotion();
+  const pulse = !reduce && !failed && current >= 0 && current < STEPS.length - 1;
 
   return (
     <ol aria-label="Progresso da análise" className="relative grid gap-5 sm:grid-cols-5 sm:gap-0">
@@ -35,6 +38,16 @@ export function StatusStepper({ status }: { status: JobStatus }) {
           animate={{ width: `${progress}%` }}
           transition={{ duration: 0.8, ease: easeOutExpo }}
         />
+        {/* Pulso de luz correndo ate a proxima etapa, enquanto a atual esta ativa */}
+        {pulse && (
+          <motion.span
+            key={current}
+            className="absolute top-1/2 h-[3px] w-14 -translate-x-full -translate-y-1/2 rounded-full bg-gradient-to-r from-transparent to-accent shadow-[0_0_10px_var(--color-accent)]"
+            initial={{ left: `${progress}%`, opacity: 0 }}
+            animate={{ left: [`${progress}%`, `${nextProgress}%`], opacity: [0, 1, 1, 0] }}
+            transition={{ duration: 1.4, repeat: Infinity, repeatDelay: 0.5, ease: "linear", times: [0, 0.15, 0.85, 1] }}
+          />
+        )}
       </div>
 
       {STEPS.map((step, i) => {
@@ -45,7 +58,10 @@ export function StatusStepper({ status }: { status: JobStatus }) {
             aria-current={state === "current" ? "step" : undefined}
             className="relative flex items-center gap-4 sm:flex-col sm:gap-3 sm:text-center"
           >
-            <div className="relative grid size-7 shrink-0 place-items-center">
+            <div
+              className="relative grid size-7 shrink-0 place-items-center"
+              data-step-last={i === STEPS.length - 1 ? "" : undefined}
+            >
               {state === "current" && (
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-accent/40" />
               )}

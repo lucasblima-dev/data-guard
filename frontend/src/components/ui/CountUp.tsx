@@ -11,6 +11,8 @@ interface CountUpProps {
   duration?: number;
   /** Usa a fonte sans (numeros de destaque) em vez da mono de dados. */
   plain?: boolean;
+  /** Mostra o valor final de imediato, sem contar. */
+  instant?: boolean;
   className?: string;
 }
 
@@ -22,9 +24,11 @@ export function CountUp({
   suffix = "",
   duration = 0.9,
   plain = false,
+  instant = false,
   className = "",
 }: CountUpProps) {
-  const reduce = useReducedMotion();
+  const prefersReduced = useReducedMotion();
+  const reduce = prefersReduced || instant;
   const mv = useMotionValue(reduce ? value : 0);
   const fmt = useMemo(
     () => new Intl.NumberFormat("pt-BR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }),

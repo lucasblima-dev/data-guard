@@ -10,14 +10,17 @@ interface Props {
   findings: QualityFinding[];
   score: number | null;
   onPrint: () => void;
+  /** Mostra o total de registros sem contar (ja exibido pela animacao de conclusao). */
+  instant?: boolean;
 }
 
-export function HealthHero({ profile, findings, score, onPrint }: Props) {
+export function HealthHero({ profile, findings, score, onPrint, instant = false }: Props) {
   const critical = findings.filter((f) => f.severity === "critical").length;
   const warning = findings.filter((f) => f.severity === "warning").length;
 
   return (
     <motion.div
+      data-hero=""
       variants={fadeUp}
       className="relative overflow-hidden rounded-card bg-accent p-7 text-accent-fg shadow-[0_40px_90px_-40px_rgb(214_255_61/0.5)] sm:p-8"
     >
@@ -37,6 +40,7 @@ export function HealthHero({ profile, findings, score, onPrint }: Props) {
           <p className="text-sm font-medium opacity-75">Registros analisados</p>
           <CountUp
             plain
+            instant={instant}
             value={profile.row_count}
             duration={1.1}
             className="text-6xl font-semibold leading-none tracking-tighter sm:text-8xl"

@@ -1,15 +1,18 @@
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowLeft, SearchX, WifiOff } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
-import { useAnalysis } from "../../hooks/useAnalysis";
+import { isTerminal, useAnalysis } from "../../hooks/useAnalysis";
 import { useAnalysisReport } from "../../hooks/useAnalysisReport";
 import { formatBytes, formatDate, formatTime } from "../../lib/format";
 import { tweenExit } from "../../lib/motion";
 import { jobStatusMeta } from "../../lib/status";
 import { ResultsDashboard } from "../quality/ResultsDashboard";
+import type { JobStatus } from "../../types/analysis";
+import { CompletionReveal } from "./CompletionReveal";
 import { FailureCard } from "./FailureCard";
 import { StatusStepper } from "./StatusStepper";
 
@@ -28,6 +31,29 @@ export function AnalysisPage() {
   const { job, error, retry } = useAnalysis(id);
   const done = job?.status === "concluida";
   const report = useAnalysisReport(id, done);
+  const reduceMotion = useReducedMotion();
+
+  // A animacao de conclusao so toca quando o status vira `concluida` com a pagina aberta;
+  // abrir uma analise ja concluida (ex.: pelo historico) mostra o resultado direto.
+  const prevStatus = useRef<JobStatus | null>(null);
+  const [celebrating, setCelebrating] = useState(false);
+  const [celebrated, setCelebrated] = useState(false);
+  const [holding, setHolding] = useState(false);
+  const status = job?.status ?? null;
+
+  useEffect(() => {
+    if (!status) return;
+    const prev = prevStatus.current;
+    prevStatus.current = status;
+    if (prev && !isTerminal(prev) && status === "concluida" && !reduceMotion) {
+      setCelebrating(true);
+      setCelebrated(true);
+      setHolding(true);
+    }
+  }, [status, reduceMotion]);
+
+  const handleLand = useCallback(() => setHolding(false), []);
+  const handleDone = useCallback(() => setCelebrating(false), []);
 
   if (!job && error) {
     const notFound = error.status === 404 || error.status === 422;
@@ -129,9 +155,20 @@ export function AnalysisPage() {
               text="A análise foi concluída, mas o relatório detalhado ainda não está disponível no serviço."
             />
           )}
-          {details?.profile && <ResultsDashboard details={details} />}
+          {details?.profile && <ResultsDashboard details={details} hold={holding} instantHero={celebrated} />}
         </div>
       )}
+
+      <AnimatePresence>
+        {celebrating && (
+          <CompletionReveal
+            rows={details?.profile?.row_count ?? null}
+            failed={!report.loading && !details?.profile}
+            onLand={handleLand}
+            onDone={handleDone}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

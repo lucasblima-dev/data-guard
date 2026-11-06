@@ -31,3 +31,5 @@ docker-compose.override.yml
 htmlcov/
 
 node_modules/
+
+.claude/

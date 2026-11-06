@@ -20,6 +20,20 @@ export async function getAnalysis(id: string, signal?: AbortSignal): Promise<Ana
   return data;
 }
 
+/**
+ * Cria a analise (POST /analyses -> 201). O analysis-service expoe hoje apenas o
+ * registro de metadados em JSON; o envio do binario (multipart) deve entrar aqui,
+ * neste unico ponto, quando o endpoint de upload existir.
+ */
+export async function createAnalysis(file: File, signal?: AbortSignal): Promise<AnalysisJob> {
+  const { data } = await apiClient.post<AnalysisJob>(
+    "/analyses",
+    { original_filename: file.name, file_size_bytes: file.size },
+    { signal },
+  );
+  return data;
+}
+
 export interface AnalysesStats {
   total: number;
   completed: number;

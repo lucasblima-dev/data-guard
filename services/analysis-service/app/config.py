@@ -1,10 +1,12 @@
+from pathlib import Path
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     APP_NAME: str = "DataGuard Analysis Service"
-    APP_VERSION: str = "0.1.0"
+    APP_VERSION: str = "0.2.0"
     ENVIRONMENT: str = "development"
     HOST: str = "0.0.0.0"
     PORT: int = 8000
@@ -13,6 +15,13 @@ class Settings(BaseSettings):
     DATABASE_URL: str = (
         "postgresql+asyncpg://dataguard:dataguard_secret@localhost:5432/dataguard_db"
     )
+
+    DATA_QUALITY_SERVICE_URL: str = "http://localhost:8001"
+    INTELLIGENCE_SERVICE_URL: str = "http://localhost:8002"
+
+    STORAGE_DIR: str = str(Path(__file__).resolve().parent.parent.parent.parent / "storage")
+    MAX_FILE_SIZE_MB: int = 25
+    INTERNAL_TIMEOUT_SECONDS: float = 10.0
 
     CORS_ORIGINS: list[str] = ["*"]
 

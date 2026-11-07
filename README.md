@@ -6,7 +6,7 @@
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18/19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4+-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
@@ -72,7 +72,7 @@ A solução adota o modelo de arquitetura orientada a serviços com suporte a pr
 
 ```mermaid
 flowchart TD
-    Client["Frontend Web (React + TS + Vite + Tailwind)\nPorta: 3000"] -->|"HTTP / REST (/api/*)"| AnalysisService["Analysis Service (FastAPI)\nPorta: 8000"]
+    Client["Frontend Web (React + TS + Vite + Tailwind CSS v4)\nPorta: 3000"] -->|"HTTP / REST (/api/*)"| AnalysisService["Analysis Service (FastAPI)\nPorta: 8000"]
     
     subgraph Storage["Camada de Armazenamento"]
         Postgres[("PostgreSQL 16")]
@@ -123,7 +123,7 @@ flowchart TD
 
 A interface de usuário do DataGuard é construída como uma aplicação web desacoplada dos microsserviços de backend:
 
-- **Stack Técnica:** React 18/19, TypeScript, Vite e Tailwind CSS.
+- **Stack Técnica:** React 18/19, TypeScript, Vite e Tailwind CSS v4 (@tailwindcss/vite).
 - **Isolamento Arquitetural:** O frontend reside na pasta `/frontend` e funciona como um cliente HTTP independente, consumindo apenas as rotas públicas do `analysis-service`. Ele nunca interage diretamente com o banco de dados, com o RabbitMQ ou com os serviços analíticos internos.
 - **Funcionalidades da Interface:**
   - Área de upload de CSV com drag-and-drop e validações preliminares de extensão e tamanho máximo.
@@ -209,7 +209,7 @@ flowchart LR
 
 | Categoria | Tecnologia | Justificativa Técnica |
 | :--- | :--- | :--- |
-| **Frontend Web** | React 18/19, TypeScript, Vite, Tailwind CSS | Interface desacoplada, performática, com tipagem estática e estilização utilitária sóbria. |
+| **Frontend Web** | React 18/19, TypeScript, Vite, Tailwind CSS v4 | Interface desacoplada, performática, com tipagem estática e estilização utilitária sóbria. |
 | **Backend Framework** | Python 3.11+ & FastAPI | Arquitetura assíncrona (ASGI), validação rigorosa com Pydantic v2 e documentação OpenAPI nativa. |
 | **Manipulação de Dados** | Pandas & NumPy | Operações matriciais vetorizadas e eficientes para perfilamento estatístico descritivo. |
 | **Persistência de Dados** | PostgreSQL 16 | Banco relacional robusto com suporte nativo a tipos estruturados e campos JSONB. |

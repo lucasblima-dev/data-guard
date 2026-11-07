@@ -1,11 +1,13 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.schemas.job import JobCreate, JobListResponse, JobResponse, JobStatus, JobUpdate
+from app.schemas.report import FullAnalysisDetailsResponse
 from app.services.job_service import JobService
+from app.services.orchestrator_service import OrchestratorService
 
 router = APIRouter()
 
@@ -15,12 +17,39 @@ router = APIRouter()
     response_model=JobResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Criar nova análise",
-    description="Registra uma nova solicitação de análise de qualidade de dados.",
+    description="Registra uma nova análise via upload multipart de arquivo CSV ou envio de metadados em JSON.",
 )
 async def create_analysis(
-    payload: JobCreate,
+    request: Request,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> JobResponse:
+    content_type = request.headers.get("content-type", "")
+    if "multipart/form-data" in content_type:
+        form = await request.form()
+        uploaded_file = form.get("file")
+        if not uploaded_file or not hasattr(uploaded_file, "filename"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "code": "MISSING_FILE",
+                    "message": "Nenhum arquivo encontrado no campo 'file'.",
+                },
+            )
+        job = await OrchestratorService.create_analysis_from_upload(db, uploaded_file, background_tasks)
+        return JobResponse.model_validate(job)
+
+    try:
+        body = await request.json()
+        payload = JobCreate.model_validate(body)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "INVALID_PAYLOAD",
+                "message": f"Payload JSON inválido: {str(exc)}",
+            },
+        )
     job = await JobService.create_job(db, payload)
     return JobResponse.model_validate(job)
 
@@ -44,6 +73,29 @@ async def list_analyses(
         page_size=page_size,
         status=status_filter,
     )
+
+
+@router.get(
+    "/{job_id}/report",
+    response_model=FullAnalysisDetailsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Consultar relatório agregado e auditoria da análise",
+    description="Retorna o perfil descritivo, os achados tabulares e o laudo executivo da análise.",
+)
+async def get_analysis_report(
+    job_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> FullAnalysisDetailsResponse:
+    full_report = await OrchestratorService.get_full_analysis_report(db, job_id)
+    if not full_report:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "JOB_NOT_FOUND",
+                "message": f"Análise com o ID '{job_id}' não foi encontrada.",
+            },
+        )
+    return full_report
 
 
 @router.get(

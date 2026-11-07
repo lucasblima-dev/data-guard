@@ -1,0 +1,11 @@
+id,nome_cliente,idade,cidade,valor_compra,status_pagamento
+1,Lucas Silva,28,Recife,150.50,pago
+2,Mariana Costa,,Sao Paulo,320.00,pago
+3,Carlos Souza,45,Rio de Janeiro,,pendente
+4,Beatriz Lima,31,Recife,89.90,pago
+5,Lucas Silva,28,Recife,150.50,pago
+6,Lucas Silva,28,Recife,150.50,pago
+7,Rafael Santos,,Belo Horizonte,,cancelado
+8,Juliana Alves,22,Salvador,410.20,pago
+9,Juliana Alves,22,Salvador,410.20,pago
+10,Fernanda Rocha,39,Curitiba,95.00,pendente

@@ -5,6 +5,13 @@ from app.schemas.job import (
     JobStatus,
     JobUpdate,
 )
+from app.schemas.report import (
+    DatasetProfileSchema,
+    FullAnalysisDetailsResponse,
+    KeyInsightSchema,
+    QualityFindingSchema,
+    QualityReportSchema,
+)
 
 __all__ = [
     "JobStatus",
@@ -12,4 +19,9 @@ __all__ = [
     "JobUpdate",
     "JobResponse",
     "JobListResponse",
+    "DatasetProfileSchema",
+    "QualityFindingSchema",
+    "KeyInsightSchema",
+    "QualityReportSchema",
+    "FullAnalysisDetailsResponse",
 ]

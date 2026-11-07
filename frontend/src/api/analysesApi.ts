@@ -30,26 +30,30 @@ export async function getAnalysis(id: string, signal?: AbortSignal): Promise<Ana
 }
 
 /**
- * Cria a analise (POST /analyses -> 201). O analysis-service expoe hoje apenas o
- * registro de metadados em JSON; o envio do binario (multipart) deve entrar aqui,
- * neste unico ponto, quando o endpoint de upload existir.
+ * Cria a análise enviando o arquivo CSV via FormData multipart/form-data
+ * para o endpoint POST /api/analyses do analysis-service.
  */
 export async function createAnalysis(file: File, signal?: AbortSignal): Promise<AnalysisJob> {
-  if (MOCKS_ENABLED) return mockCreateAnalysis(file, signal); // simulado: espera 2 s, sem chamada HTTP
-  const { data } = await apiClient.post<AnalysisJob>(
-    "/analyses",
-    { original_filename: file.name, file_size_bytes: file.size },
-    { signal },
-  );
+  if (MOCKS_ENABLED) return mockCreateAnalysis(file, signal);
+
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+
+  const { data } = await apiClient.post<AnalysisJob>("/analyses", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+    signal,
+  });
   return data;
 }
 
 /**
- * GET /analyses/{id}/report. Retorna null quando o servico ainda nao expoe o
- * relatorio (404/405), para a UI degradar sem tratar como falha.
+ * GET /analyses/{id}/report. Retorna o relatório consolidado com
+ * o perfil tabular, achados de qualidade, laudo de IA e health score.
  */
 export async function getAnalysisReport(id: string, signal?: AbortSignal): Promise<FullAnalysisDetails | null> {
-  if (MOCKS_ENABLED && isMockJob(id)) return mockGetAnalysisReport(id, signal); // simulado: espera 2 s
+  if (MOCKS_ENABLED && isMockJob(id)) return mockGetAnalysisReport(id, signal);
   try {
     const { data } = await apiClient.get<FullAnalysisDetails>(`/analyses/${id}/report`, { signal });
     return data;
@@ -66,7 +70,7 @@ export interface AnalysesStats {
   inProgress: number;
 }
 
-/** Estatisticas globais via contagens (page_size=1), sem baixar as listas. */
+/** Estatísticas globais via contagens (page_size=1), sem baixar as listas. */
 export async function getAnalysesStats(signal?: AbortSignal): Promise<AnalysesStats> {
   const [all, completed, failed] = await Promise.all([
     listAnalyses({ pageSize: 1 }, signal),

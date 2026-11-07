@@ -29,3 +29,7 @@ docker-compose.override.yml
 .pytest_cache/
 .coverage
 htmlcov/
+
+node_modules/
+
+.claude/

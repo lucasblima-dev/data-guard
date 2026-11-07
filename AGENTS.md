@@ -9,7 +9,7 @@ Este documento estabelece as regras, padrões arquiteturais, contratos de interf
 ### 1.1 Separação Estrita de Responsabilidades e Camadas
 
 - O sistema é dividido entre uma camada de interface desacoplada e três microsserviços de backend:
-  1. `frontend`: Aplicação web Single-Page Application (SPA) em React, TypeScript, Vite e Tailwind CSS.
+  1. `frontend`: Aplicação web Single-Page Application (SPA) em React, TypeScript, Vite e Tailwind CSS v4.
   2. `analysis-service`: Orquestrador de jobs, recepção de uploads, histórico e API pública.
   3. `data-quality-service`: Motor analítico tabular determinístico (Pandas/NumPy).
   4. `intelligence-service`: Agregador de relatórios e motor de síntese técnica (Regras determinísticas + LLM Híbrido).
@@ -41,12 +41,12 @@ Este documento estabelece as regras, padrões arquiteturais, contratos de interf
 - **Qualidade de Código:** Aderência estrita às regras do **Ruff** (lint e formatação) e **mypy** para checagem estática de tipos.
 - **Tratamento de Exceções:** Exceções conhecidas devem retornar códigos de status HTTP apropriados (`400`, `404`, `413`, `415`, `422`) com payloads padronizados.
 
-### 2.2 Frontend (React 18/19 + TypeScript + Vite + Tailwind CSS)
+### 2.2 Frontend (React 18/19 + TypeScript + Vite + Tailwind CSS v4)
 
 - **Localização:** Diretório isolado `/frontend`.
 - **Arquitetura de Componentes:** Componentes funcionais puros, tipados estritamente com TypeScript (sem uso de `any`).
 - **Gerenciamento de Estado:** React Hooks nativos (`useState`, `useReducer`, `useContext`) ou bibliotecas leves como TanStack Query (para caching e polling de requisições).
-- **Estilização:** Tailwind CSS utilitário, mantendo consistência visual sóbria, técnica e profissional (**estritamente sem emojis**, priorizando ícones vetoriais via Lucide React ou SVG customizado).
+- **Estilização:** Tailwind CSS v4 utilitário (via `@tailwindcss/vite`), mantendo consistência visual sóbria, técnica e profissional (**estritamente sem emojis**, priorizando ícones vetoriais via Lucide React ou SVG customizado).
 - **Gráficos e Visualizações:** Biblioteca declarativa (ex.: Recharts) para renderização de histogramas de frequência, taxas de nulos por coluna e composições categóricas.
 - **Build e Deploy:** Dockerfile multi-stage com compilação pelo Vite e distribuição dos arquivos estáticos via servidor Nginx enxuto.
 

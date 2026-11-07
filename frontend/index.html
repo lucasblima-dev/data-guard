@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0a0a0b" />
+    <script>
+      /* Aplica o tema salvo antes da primeira pintura, para nao piscar. Padrao: escuro. */
+      (function () {
+        try {
+          if (localStorage.getItem("dg-theme") === "light") {
+            document.documentElement.dataset.theme = "light";
+            document.querySelector('meta[name="color-scheme"]').setAttribute("content", "light");
+            document.querySelector('meta[name="theme-color"]').setAttribute("content", "#f4f4f0");
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>DataGuard</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

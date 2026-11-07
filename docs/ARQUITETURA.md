@@ -13,7 +13,7 @@ O **DataGuard** adota uma arquitetura orientada a serviços (SOA / Microsserviç
 ```mermaid
 flowchart TB
     subgraph ClientTier["Camada de Apresentação (Desacoplada)"]
-        WebSPA["Frontend Web SPA (React + TS + Vite + Tailwind)\nHost: Porta 3000"]
+        WebSPA["Frontend Web SPA (React + TS + Vite + Tailwind CSS v4)\nHost: Porta 3000"]
     end
 
     subgraph EdgeTier["Borda e API Gateway / Orquestrador"]
@@ -87,7 +87,7 @@ A aplicação cliente é projetada como um sistema web totalmente independente d
 ### 2.1 Especificação Técnica do Frontend
 
 - **Framework e Tooling:** React 18/19, TypeScript estrito, Vite (bundler otimizado para HMR e build de produção).
-- **Estilização e Design System:** Tailwind CSS utilitário com paleta sóbria e corporativa (tons neutros, ardósia e azul técnico), **estritamente sem emojis**, utilizando ícones vetoriais padronizados (Lucide React).
+- **Estilização e Design System:** Tailwind CSS v4 utilitário (@tailwindcss/vite) com paleta sóbria e corporativa (tons neutros, ardósia e azul técnico), **estritamente sem emojis**, utilizando ícones vetoriais padronizados (Lucide React).
 - **Visualização de Dados:** Recharts para renderização declarativa e responsiva de:
   - Histogramas de distribuição de valores numéricos.
   - Gráficos de barras para percentual de valores nulos por coluna.

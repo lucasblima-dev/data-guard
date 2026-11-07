@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -21,6 +21,7 @@ router = APIRouter()
 )
 async def create_analysis(
     request: Request,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> JobResponse:
     content_type = request.headers.get("content-type", "")
@@ -35,7 +36,7 @@ async def create_analysis(
                     "message": "Nenhum arquivo encontrado no campo 'file'.",
                 },
             )
-        job = await OrchestratorService.create_analysis_from_upload(db, uploaded_file)
+        job = await OrchestratorService.create_analysis_from_upload(db, uploaded_file, background_tasks)
         return JobResponse.model_validate(job)
 
     try:

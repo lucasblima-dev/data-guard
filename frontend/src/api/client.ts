@@ -77,7 +77,7 @@ function toApiError(error: unknown): ApiError {
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:8000/api",
-  timeout: 10_000,
+  timeout: 30_000,
   headers: { Accept: "application/json" },
 });
 

@@ -1,9 +1,7 @@
 services:
-  # Frontend 
-  - type: web
+  # 1. Frontend
+  - type: static
     name: dataguard-frontend
-    env: static
-    plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
@@ -17,7 +15,7 @@ services:
       - key: VITE_USE_MOCKS
         value: "false"
 
-  # Analysis Service
+  # 2. Analysis Service
   - type: web
     name: dataguard-analysis-service
     env: python
@@ -38,7 +36,7 @@ services:
       - key: INTELLIGENCE_SERVICE_URL
         value: https://dataguard-intelligence-service.onrender.com
 
-  # Data Quality Service
+  # 3. Data Quality Service
   - type: web
     name: dataguard-data-quality-service
     env: python
@@ -55,7 +53,7 @@ services:
       - key: DATABASE_URL
         sync: false # Configurar com a URL do Supabase no Dashboard do Render
 
-  # Intelligence Service
+  # 4. Intelligence Service
   - type: web
     name: dataguard-intelligence-service
     env: python

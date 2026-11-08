@@ -3,7 +3,6 @@ services:
   - type: web
     name: dataguard-frontend
     env: static
-    region: ohio
     plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build

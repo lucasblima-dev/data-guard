@@ -9,6 +9,7 @@ class ProcessQualityRequest(BaseModel):
     analysis_id: UUID = Field(..., description="ID universal da análise solicitada.")
     filename: str = Field(..., description="Nome original do arquivo CSV.")
     file_ref: str | None = Field(default=None, description="Caminho seguro do arquivo no storage.")
+    csv_content: str | None = Field(default=None, description="Conteúdo textual do CSV para ambientes em nuvem com sistemas de arquivos isolados.")
 
 
 class ProcessQualityResponse(BaseModel):
@@ -50,20 +51,20 @@ class DatasetProfileResponse(BaseModel):
 
 
 class QualityFindingResponse(BaseModel):
-    id: UUID = Field(..., description="ID do achado de qualidade.")
-    analysis_id: UUID = Field(..., description="ID da análise correspondente.")
-    code: str = Field(..., description="Código padronizado do achado (ex: DUPLICATE_ROWS).")
-    severity: str = Field(..., description="Severidade: info, warning ou critical.")
-    target_column: str | None = Field(default=None, description="Coluna afetada, se aplicável.")
-    description: str = Field(..., description="Descrição técnica do achado.")
-    metric_value: float | None = Field(default=None, description="Valor numérico relacionado à métrica.")
-    evidence: str | None = Field(default=None, description="Evidência textual de amostragem.")
-    created_at: datetime = Field(..., description="Data e hora do registro do achado.")
+    id: UUID = Field(..., description="Identificador único do achado.")
+    analysis_id: UUID = Field(..., description="ID da análise à qual o achado pertence.")
+    code: str = Field(..., description="Código de categorização da anomalia identificada.")
+    severity: str = Field(..., description="Nível de severidade do achado (critical, warning, info).")
+    target_column: str | None = Field(default=None, description="Nome do atributo afetado.")
+    description: str = Field(..., description="Detalhamento textual explicativo do problema.")
+    metric_value: float | None = Field(default=None, description="Valor quantitativo da métrica de qualidade.")
+    evidence: str | None = Field(default=None, description="Dados amostrais que fundamentam o achado.")
+    created_at: datetime = Field(..., description="Timestamp de detecção do achado.")
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class QualityDetailsResponse(BaseModel):
-    analysis_id: UUID = Field(..., description="ID da análise.")
-    profile: DatasetProfileResponse | None = Field(default=None, description="Perfil estatístico do dataset.")
-    findings: list[QualityFindingResponse] = Field(default_factory=list, description="Lista de achados de qualidade.")
+    analysis_id: UUID = Field(..., description="ID da análise consultada.")
+    profile: DatasetProfileResponse | None = Field(default=None, description="Perfil descritivo tabular.")
+    findings: list[QualityFindingResponse] = Field(default_factory=list, description="Lista de achados de conformidade.")

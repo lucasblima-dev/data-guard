@@ -102,7 +102,6 @@ class OrchestratorService:
                 },
             )
 
-        # 1. Registra o job no banco com resposta imediata
         file_ref_str = str(destination_path.resolve())
         job = AnalysisJobModel(
             id=job_id,
@@ -115,7 +114,6 @@ class OrchestratorService:
         await db.commit()
         await db.refresh(job)
 
-        # 2. Agenda a orquestração do pipeline em background
         background_tasks.add_task(
             cls.run_pipeline_task,
             job_id,
@@ -153,6 +151,14 @@ class OrchestratorService:
             profile_data = None
             findings_data = []
 
+            csv_text = None
+            try:
+                if file_ref and os.path.exists(file_ref):
+                    with open(file_ref, "r", encoding="utf-8", errors="replace") as f:
+                        csv_text = f.read()
+            except Exception as e:
+                logger.warning("Falha ao ler arquivo CSV local para envio ao data-quality-service: %s", e)
+
             async with httpx.AsyncClient(timeout=settings.INTERNAL_TIMEOUT_SECONDS) as client:
                 try:
                     logger.info("Chamando data-quality-service para job %s...", job_id)
@@ -162,6 +168,7 @@ class OrchestratorService:
                             "analysis_id": str(job_id),
                             "file_ref": file_ref,
                             "filename": filename,
+                            "csv_content": csv_text,
                         },
                     )
                     if dq_response.status_code != 200:
@@ -176,7 +183,6 @@ class OrchestratorService:
                     await db.commit()
                     return
 
-                # Recupera detalhes calculados
                 try:
                     q_resp = await client.get(f"{dq_url}/quality/{job_id}")
                     if q_resp.status_code == 200:
@@ -193,7 +199,6 @@ class OrchestratorService:
                     await db.commit()
                     return
 
-                # Etapa 2: Gerando Relatório
                 job.status = JobStatus.GERANDO_RELATORIO.value
                 await db.commit()
 
@@ -248,7 +253,7 @@ class OrchestratorService:
         findings_objs = []
         report_obj = None
 
-        # 1. Tenta buscar via HTTP interno
+        # Search via HTTP interno
         async with httpx.AsyncClient(timeout=settings.INTERNAL_TIMEOUT_SECONDS) as client:
             try:
                 resp = await client.get(f"{dq_url}/quality/{job_id}")
@@ -272,7 +277,7 @@ class OrchestratorService:
             except Exception as exc:
                 logger.warning("Falha HTTP ao consultar relatório de %s: %s", job_id, exc)
 
-        # 2. Fallback direto no Supabase caso os serviços internos estejam inacessíveis via HTTP
+        # Fallback direto no Supabase se falhar via HTTP
         if not profile_obj or not report_obj:
             try:
                 from sqlalchemy import text

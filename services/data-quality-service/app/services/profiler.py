@@ -102,13 +102,22 @@ class ProfilerService:
         analysis_id: UUID,
         file_ref: str | None,
         filename: str,
+        csv_content: str | None = None,
     ) -> tuple[DatasetProfileModel, list[QualityFindingModel]]:
         df: pd.DataFrame | None = None
 
-        if file_ref and os.path.exists(file_ref):
+        if csv_content:
+            try:
+                import io
+                df = pd.read_csv(io.StringIO(csv_content))
+                logger.info("Arquivo CSV carregado com sucesso via csv_content (comunicação entre containers).")
+            except Exception as e:
+                logger.warning("Falha ao ler CSV de csv_content: %s", e)
+
+        if df is None and file_ref and os.path.exists(file_ref):
             try:
                 df = pd.read_csv(file_ref)
-                logger.info("Arquivo CSV carregado com sucesso: %s", file_ref)
+                logger.info("Arquivo CSV carregado com sucesso a partir do disco: %s", file_ref)
             except Exception as e:
                 logger.warning("Falha ao ler CSV '%s': %s. Usando fallback de amostra.", file_ref, e)
 

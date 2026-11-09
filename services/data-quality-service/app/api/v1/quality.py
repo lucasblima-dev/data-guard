@@ -33,6 +33,7 @@ async def process_quality(
             analysis_id=payload.analysis_id,
             file_ref=payload.file_ref,
             filename=payload.filename,
+            csv_content=payload.csv_content,
         )
         return ProcessQualityResponse(
             analysis_id=payload.analysis_id,

@@ -1,379 +1,387 @@
 # Especificação da Arquitetura Distribuída — DataGuard
 
-Este documento descreve formalmente a arquitetura de software, a modelagem de dados, a camada de apresentação desacoplada, os contratos de comunicação entre microsserviços, a integração híbrida de inteligência artificial e a fundamentação teórica de sistemas distribuídos aplicada ao projeto **DataGuard**.
+Este documento descreve formalmente a arquitetura de software, a modelagem de dados, a camada de apresentação desacoplada, os contratos de comunicação entre microsserviços, a integração híbrida de inteligência artificial, o tratamento de falhas e resiliência, e o plano de evolução distribuída do projeto **DataGuard**.
 
 ---
 
-## 1. Visão Arquitetural e Topologia do Sistema
+## 1. Visão Geral e Contexto de Execução
 
-O **DataGuard** adota uma arquitetura orientada a serviços (SOA / Microsserviços) distribuída, complementada por uma aplicação frontend desacoplada (SPA) e comunicação assíncrona orientada a eventos para o processamento intensivo de dados tabulares.
+O **DataGuard** é uma plataforma distribuída para perfilamento determinístico e avaliação automatizada de qualidade em dados tabulares (arquivos CSV), enriquecida por uma camada de síntese técnica e contextualização executiva baseada em inteligência artificial híbrida.
 
-### 1.1 Diagrama de Topologia de Rede e Comunicação
+### 1.1 Separação Rígida de Responsabilidades
+
+O design do sistema apoia-se em quatro premissas fundamentais:
+
+1. **Quem orquestra não processa:** O `analysis-service` gerencia o ciclo de vida dos jobs e atua como porta de entrada pública, sem realizar cálculos de métricas tabulares.
+2. **Quem calcula é 100% determinístico:** O `data-quality-service` realiza o perfilamento estatístico e a detecção de anomalias exclusivamente por código vetorizado (**Pandas** e **NumPy**). O resultado é rigorosamente idempotente e reproduzível para o mesmo conjunto de dados.
+3. **Quem sintetiza nunca vê os dados brutos:** O `intelligence-service` recebe unicamente o sumário métrico e os achados estruturados. O arquivo CSV bruto nunca trafega para o serviço de inteligência nem para provedores de IA externos.
+4. **Isolamento da interface:** A camada de apresentação (`frontend`) comunica-se unicamente com a API pública do `analysis-service` via REST. Em nenhuma hipótese a interface conecta-se diretamente a bancos de dados, brokers de mensageria ou serviços internos.
+
+---
+
+## 2. Topologia do Sistema: Estado Atual (Módulo 2) vs Evolução Planejada (Módulos 3 e 4)
+
+Para atender à evolução pedagógica e operacional da disciplina, o repositório mantém distinção clara entre a **implementação em produção atual** e o **plano de evolução arquitetural**.
+
+### 2.1 Topologia Atual Implementada (Módulo 2)
+
+Na fase atual, o sistema está completamente dividido em **quatro componentes autônomos**, hospedados no Render com persistência relacional remota no Supabase (PostgreSQL 16) e comunicação interna síncrona via HTTP:
 
 ```mermaid
-flowchart TB
-    subgraph ClientTier["Camada de Apresentação (Desacoplada)"]
-        WebSPA["Frontend Web SPA (React + TS + Vite + Tailwind CSS v4)\nHost: Porta 3000"]
+flowchart LR
+    U(["Usuário<br/>Navegador"])
+
+    subgraph RENDER["Render (nuvem) - 4 serviços independentes"]
+        FE["dataguard-frontend<br/>React + TypeScript + Vite<br/>site estático"]
+        AS["analysis-service<br/>FastAPI - API pública<br/>Orquestrador de jobs"]
+        DQ["data-quality-service<br/>FastAPI - /internal<br/>Pandas + NumPy"]
+        IS["intelligence-service<br/>FastAPI - /internal<br/>Síntese do laudo"]
     end
 
-    subgraph EdgeTier["Borda e API Gateway / Orquestrador"]
-        AnalysisAPI["Analysis Service (FastAPI)\nHost: Porta 8000"]
+    subgraph SUPA["Supabase (nuvem)"]
+        PG[("PostgreSQL")]
     end
 
-    subgraph InternalServices["Camada de Microsserviços Internos"]
-        DQService["Data Quality Service (FastAPI / Worker)\nPorta Interna: 8001"]
-        IntellService["Intelligence Service (FastAPI / Worker)\nPorta Interna: 8002"]
+    subgraph LLM["Provedores de IA (opcionais)"]
+        HF["Hugging Face<br/>Qwen2.5-7B-Instruct"]
+        OL["Ollama na LAN<br/>qwen2.5:7b"]
     end
 
-    subgraph MessagingTier["Camada de Mensageria (AMQP)"]
-        Exchange["Exchange: dataguard.exchange (direct)"]
-        Q_Requested[("Fila: analysis.requested.queue")]
-        Q_Quality[("Fila: analysis.quality.queue")]
-        Q_Completed[("Fila: analysis.completed.queue")]
-        Q_DLQ[("Fila: dataguard.deadletter.queue")]
-    end
+    U -->|"HTTPS"| FE
+    FE -->|"REST /api<br/>única porta de entrada"| AS
+    AS -->|"HTTP POST /internal/process<br/>timeout 10 s"| DQ
+    AS -->|"HTTP POST /internal/synthesize<br/>timeout 10 s"| IS
+    AS -.->|"HTTP GET /internal/quality<br/>/internal/reports"| DQ
+    AS -.-> IS
 
-    subgraph DataTier["Camada de Persistência e Storage"]
-        Postgres[("PostgreSQL 16\n(Metadados e Resultados)")]
-        FileStorage[("Volume de Arquivos Compartilhado\n(/app/storage)")]
-    end
+    AS -->|"analysis_jobs"| PG
+    DQ -->|"dataset_profiles<br/>quality_findings"| PG
+    IS -->|"analysis_reports"| PG
 
-    subgraph AITier["Provedores Híbridos de Inteligência Artificial"]
-        direction TB
-        HF_Cloud["Provedor 1: Hugging Face Serverless API\n(Qwen2.5-7B-Instruct / Nuvem)"]
-        Ollama_LAN["Provedor 2: Servidor Ollama na Rede Local\n(GPU 64GB DDR5 / LAN / qwen2.5:7b)"]
-        LocalRules["Provedor 3: Motor Determinístico Local\n(Fallback Heurístico Baseado em Regras)"]
-    end
+    IS -.->|"LLM_PROVIDER=huggingface<br/>timeout 15 s"| HF
+    IS -.->|"LLM_PROVIDER=ollama<br/>timeout 25 s"| OL
+```
 
-    WebSPA -->|"HTTP POST /api/analyses (Upload)"| AnalysisAPI
-    WebSPA -->|"HTTP GET /api/analyses/{id}"| AnalysisAPI
-    WebSPA -->|"HTTP GET /api/analyses/{id}/report"| AnalysisAPI
+### 2.2 Topologia Planejada com Mensageria e Contêineres (Módulos 3 e 4)
 
-    AnalysisAPI -->|"Persiste Job Inicial"| Postgres
-    AnalysisAPI -->|"Salva CSV Sanitizado"| FileStorage
-    AnalysisAPI -->|"Publica: analysis.requested"| Exchange
+A arquitetura foi projetada para receber desacoplamento assíncrono via **RabbitMQ** e conteinerização integral via **Docker Compose** sem necessidade de reescrever as regras de negócio:
 
-    Exchange -->|"Routing Key: analysis.requested"| Q_Requested
-    Exchange -->|"Routing Key: analysis.quality.completed"| Q_Quality
-    Exchange -->|"Routing Key: analysis.completed"| Q_Completed
-
-    Q_Requested -->|"Consumo Assíncrono (Worker)"| DQService
-    DQService -->|"Lê CSV"| FileStorage
-    DQService -->|"Consulta Síncrona HTTP"| AnalysisAPI
-    DQService -->|"Grava Perfil e Achados"| Postgres
-    DQService -->|"Publica: analysis.quality.completed"| Exchange
-
-    Q_Quality -->|"Consumo Assíncrono (Worker)"| IntellService
-    IntellService -->|"Consulta Detalhes via HTTP"| DQService
-    IntellService -.->|"Inferência Nuvem (HTTPS)"| HF_Cloud
-    IntellService -.->|"Inferência LAN (HTTP :11434)"| Ollama_LAN
-    IntellService -.->|"Fallback em Falha de Rede"| LocalRules
-    IntellService -->|"Grava Relatório Consolidado"| Postgres
-    IntellService -->|"Publica: analysis.completed"| Exchange
-
-    Q_Completed -->|"Consumo Assíncrono"| AnalysisAPI
-    AnalysisAPI -->|"Atualiza Status: concluida"| Postgres
-
-    DQService -.->|"Falha Não-Recuperável"| Q_DLQ
-    IntellService -.->|"Falha Não-Recuperável"| Q_DLQ
+```mermaid
+flowchart LR
+    FE["Frontend<br/>Nginx"] --> AS["analysis-service"]
+    AS -->|"publica analysis.requested<br/>(só IDs e file_ref)"| MQ{{"RabbitMQ<br/>dataguard.exchange"}}
+    MQ -->|"consome"| DQ["data-quality-service"]
+    DQ -->|"publica evento de conclusão"| MQ
+    MQ -->|"consome"| IS["intelligence-service"]
+    MQ -.->|"falha permanente"| DLQ[("Dead Letter Queue")]
+    AS --> PG[("PostgreSQL")]
+    DQ --> PG
+    IS --> PG
 ```
 
 ---
 
-## 2. Camada de Apresentação (Frontend Desacoplado)
+## 3. Delimitação de Responsabilidades dos Microsserviços
 
-A aplicação cliente é projetada como um sistema web totalmente independente dos serviços de backend, atendendo a boas práticas de separação entre interface e serviços de negócio.
+### 3.1 Analysis Service (Porta de Entrada e Orquestrador)
 
-### 2.1 Especificação Técnica do Frontend
+- **Porta pública:** Expõe rotas `/api/analyses` para o frontend.
+- **Validações de entrada:** Verifica formato do arquivo (extensão `.csv`), sanitiza o nome e valida limite máximo de tamanho (padrão de 25 MB).
+- **Processamento em streaming:** Salva o arquivo em blocos de 1 MB em disco local/storage para evitar estouro de memória no upload.
+- **Resposta imediata:** Grava o job com status `enviada` e retorna HTTP 201 com o `analysis_id` em milissegundos.
+- **Agendamento assíncrono:** Dispara o pipeline em segundo plano utilizando `BackgroundTasks` do FastAPI.
+- **Agregação do relatório:** Quando a análise é concluída, unifica os dados das tabelas de métricas, achados e laudo, e calcula a nota global de saúde (**Health Score**).
 
-- **Framework e Tooling:** React 18/19, TypeScript estrito, Vite (bundler otimizado para HMR e build de produção).
-- **Estilização e Design System:** Tailwind CSS v4 utilitário (@tailwindcss/vite) com paleta sóbria e corporativa (tons neutros, ardósia e azul técnico), **estritamente sem emojis**, utilizando ícones vetoriais padronizados (Lucide React).
-- **Visualização de Dados:** Recharts para renderização declarativa e responsiva de:
-  - Histogramas de distribuição de valores numéricos.
-  - Gráficos de barras para percentual de valores nulos por coluna.
-  - Gráficos de composição para cardinalidade de atributos categóricos.
-- **Isolamento de Comunicação:** O frontend comunica-se exclusivamente com a API pública do `analysis-service` (`http://localhost:8000/api`). Em nenhum cenário o frontend acessa portas internas do banco de dados, broker RabbitMQ ou serviços de processamento.
+### 3.2 Data Quality Service (Motor Analítico Determinístico)
 
-### 2.2 Estrutura Modular da Aplicação Web
+- **Porta interna:** Expõe endpoints restritos `/internal/process` e `/internal/quality/{id}`.
+- **Leitura do dataset:** Carrega o CSV apontado por `file_ref` (ou conteúdo serializado) utilizando Pandas.
+- **Perfilamento estatístico:**
+  - Colunas numéricas: contagem de válidos, taxa de nulos, média, mediana, desvio padrão, mínimo, quartis e máximo.
+  - Colunas categóricas: cardinalidade (valores únicos) e frequência relativa das classes majoritárias.
+  - Colunas temporais: menor e maior data, dispersão temporal.
+- **Detecção de anomalias (Achados):** Identificação de linhas duplicadas, proporção crítica de nulos por coluna e incompatibilidade de tipos de dados.
+- **Persistência especializada:** Grava o perfil estruturado na tabela `dataset_profiles` e os achados individuais na tabela `quality_findings`.
 
-```text
-frontend/
-├── Dockerfile                  # Multi-stage build (Vite -> Nginx Alpine)
-├── nginx.conf                  # Roteamento SPA e proxy reverso opcional
-├── package.json
-├── vite.config.ts
-├── tsconfig.json
-└── src/
-    ├── api/                    # Clientes de comunicação HTTP (Axios / Fetch tipado)
-    │   └── analysesApi.ts      # Métodos: createAnalysis, getStatus, getReport, listAnalyses
-    ├── components/             # Componentes atômicos e de layout
-    │   ├── ui/                 # Botões, Badges, Cards, Alertas e Modais
-    │   └── layout/             # Header, Sidebar, Container e Footer
-    ├── features/               # Módulos organizados por contexto de uso
-    │   ├── upload/             # Área de upload com dropzone, feedback de tamanho e validação
-    │   ├── status/             # Barra de progresso e máquina de estados visual
-    │   ├── quality/            # Painel de métricas e tabelas de achados
-    │   └── report/             # Visualizador do relatório consolidado e insights
-    ├── hooks/                  # Custom hooks para polling e requisições assíncronas
-    │   └── useAnalysisPolling.ts
-    └── types/                  # Interfaces e tipos TypeScript sincronizados com os schemas Pydantic
-        └── analysis.ts
+### 3.3 Intelligence Service (Motor de Síntese Técnica e Laudo)
+
+- **Porta interna:** Expõe endpoints `/internal/synthesize` e `/internal/reports/{id}`.
+- **Entrada estrita:** Recebe exclusivamente o sumário de colunas e a lista de `QualityFinding`.
+- **Estratégia híbrida:** Aciona o provedor configurado (Hugging Face Serverless API, Ollama na rede local ou motor de regras local).
+- **Saída padronizada:** Gera sumário executivo, interpretação contextual de cada achado, recomendações técnicas de saneamento e limitações observadas.
+- **Persistência especializada:** Grava o laudo na tabela `analysis_reports`, sinalizando transparentemente o `generation_mode` utilizado (`llm_assisted` ou `rules_only`).
+
+---
+
+## 4. Ciclo de Vida e Passo a Passo de uma Análise
+
+O diagrama de sequência a seguir ilustra a jornada completa de uma requisição de análise, desde o upload inicial pelo navegador até a renderização do painel consolidado:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Usuário
+    participant FE as Frontend
+    participant AS as analysis-service
+    participant ST as Storage local
+    participant DB as PostgreSQL (Supabase)
+    participant DQ as data-quality-service
+    participant IS as intelligence-service
+
+    U->>FE: Seleciona CSV e envia
+    FE->>AS: POST /api/analyses (multipart)
+    AS->>AS: Valida extensão .csv e limite de 25 MB
+    AS->>ST: Grava arquivo em blocos de 1 MB
+    AS->>DB: INSERT analysis_jobs (status = enviada)
+    AS-->>FE: 201 Created com analysis_id (resposta imediata)
+    Note over AS: BackgroundTasks agenda o pipeline<br/>depois de responder
+
+    par Interface consulta o andamento
+        loop A cada 3 s até concluida ou falhou
+            FE->>AS: GET /api/analyses/{id}
+            AS->>DB: SELECT status
+            AS-->>FE: status atual
+        end
+    and Pipeline em segundo plano
+        AS->>DB: status = analisando
+        AS->>DQ: POST /internal/process (analysis_id, file_ref, filename)
+        DQ->>ST: Lê o CSV com Pandas
+        DQ->>DQ: Perfila colunas e gera achados
+        DQ->>DB: INSERT dataset_profiles e quality_findings
+        DQ-->>AS: 200 OK
+        AS->>DQ: GET /internal/quality/{id}
+        DQ-->>AS: perfil + achados (JSON)
+        AS->>DB: status = gerando_relatorio
+        AS->>IS: POST /internal/synthesize (somente métricas e achados)
+        IS->>IS: Escolhe provedor (IA ou regras)
+        IS->>DB: INSERT analysis_reports
+        IS-->>AS: 200 OK (generation_mode)
+        AS->>DB: status = concluida, completed_at
+    end
+
+    FE->>AS: GET /api/analyses/{id}/report
+    AS->>DQ: GET /internal/quality/{id}
+    AS->>IS: GET /internal/reports/{id}
+    AS->>AS: Agrega e calcula health_score
+    AS-->>FE: job + perfil + achados + laudo + nota
 ```
 
 ---
 
-## 3. Microsserviços de Backend e Delimitação de Contextos
+## 5. Máquina de Estados da Análise (`AnalysisJob`)
 
-### 3.1 Analysis Service
+Cada análise transita de forma estritamente controlada entre estados bem definidos. Os estados `concluida` e `falhou` são **terminais**: ao atingi-los, a interface web encerra automaticamente as consultas de polling.
 
-- **Contexto Delimitado:** Gerenciamento do ciclo de vida da entidade central `AnalysisJob`, recepção pública de requisições e exposição da API REST.
-- **Responsabilidades:**
-  - Validar tamanho, formato e integridade básica de arquivos CSV no endpoint `/api/analyses`.
-  - Atribuir identificador único (UUID v4) e salvar o arquivo em diretório controlado com nome seguro e sanitizado.
-  - Registrar metadados iniciais no PostgreSQL com status `enviada`.
-  - Publicar o evento inicial `analysis.requested` no RabbitMQ.
-  - Consumir eventos de conclusão ou falha para atualizar o status final do job.
-  - Fornecer endpoints de consulta paginada de histórico e detalhes de relatório.
-
-### 3.2 Data Quality Service
-
-- **Contexto Delimitado:** Motor analítico e estatístico determinístico de dados tabulares.
-- **Responsabilidades:**
-  - Ler e decodificar o arquivo CSV referenciado no evento.
-  - Inferir tipos de dados de cada coluna (numérico, categórico, temporal, textual).
-  - Executar cálculos estatísticos descritivos por meio de algoritmos vetorizados (**Pandas** / **NumPy**):
-    - Numéricos: Contagem válida, percentual de nulos, média, mediana, desvio padrão, mínimo, quartis e máximo.
-    - Categóricos: Contagem de valores únicos, cardinalidade e frequência relativa das classes mais comuns.
-    - Temporais: Intervalo de datas, menor/maior data e frequência.
-  - Identificar violações de qualidade (achados): linhas duplicadas, ausência crítica de valores e colunas de tipo corrompido.
-  - Persistir o perfil estruturado (`DatasetProfile`) e os achados (`QualityFinding`) no PostgreSQL.
-  - Publicar o evento `analysis.quality.completed` com o resumo dos achados.
-
-### 3.3 Intelligence Service
-
-- **Contexto Delimitado:** Composição de relatórios executivos e camada de interpretação contextual.
-- **Responsabilidades:**
-  - Consumir os resultados consolidados pelo `Data Quality Service`.
-  - Gerar a estrutura base do relatório (`AnalysisReport`).
-  - Executar o motor de síntese através do padrão Provedor Abstrato:
-    - **Hugging Face Serverless API:** Chamada remota na nuvem (sem custo e sem GPU no host).
-    - **Ollama em Servidor LAN:** Chamada local de altíssimo desempenho em máquina dedicada na mesma rede (GPU com 64GB DDR5 e 2TB NVMe).
-    - **Fallback Determinístico (`rules_only`):** Síntese automática por regras pré-programadas em caso de ausência de rede, rate-limit ou indisponibilidade de infraestrutura.
-  - Persistir o relatório final e emitir o evento `analysis.completed`.
+```mermaid
+stateDiagram-v2
+    [*] --> enviada: upload aceito
+    enviada --> analisando: pipeline inicia
+    analisando --> gerando_relatorio: perfil e achados obtidos
+    gerando_relatorio --> concluida: laudo persistido
+    analisando --> falhou: data-quality indisponível ou lento
+    analisando --> falhou: detalhes de qualidade não recuperados
+    gerando_relatorio --> falhou: intelligence indisponível ou lento
+    concluida --> [*]
+    falhou --> [*]
+    note right of falhou
+        error_code e error_message
+        gravados no job
+    end note
+```
 
 ---
 
-## 4. Camada de Inteligência Artificial Híbrida e Resiliente
+## 6. Resiliência, Tratamento de Falhas e Códigos de Erro
 
-Para conciliar a necessidade de testes em múltiplos ambientes (desenvolvimento individual fora do laboratório versus testes de alta performance na rede da universidade), a arquitetura adota um design híbrido desacoplado.
+Em uma arquitetura distribuída, falhas parciais de rede ou indisponibilidade de serviços dependentes devem ser tratadas com previsibilidade e elegância.
+
+### 6.1 Fluxo de Falha nos Microsserviços e Timeouts
+
+Todas as chamadas HTTP entre microsserviços utilizam timeout estrito de **10 segundos**. Caso um serviço não responda dentro do limite ou retorne erro HTTP, o coordenador cancela a operação imediatamente e atualiza o job no banco de dados com código de erro específico:
 
 ```mermaid
 flowchart TD
-    InputData["Sumário Métrico + Achados Estruturados\n(DatasetProfile + QualityFinding[])"] --> StrategyRouter{"Roteador de Provedor\n(LLM_PROVIDER)"}
-    
-    StrategyRouter -->|"huggingface"| CloudProvider["Hugging Face Serverless Client\n(Modelo: Qwen2.5-7B-Instruct)"]
-    StrategyRouter -->|"ollama"| LANProvider["Ollama Client (LAN:11434)\n(Modelo: qwen2.5:7b)"]
-    StrategyRouter -->|"disabled"| RulesEngine["Motor de Regras Heurísticas"]
+    A["Pipeline inicia<br/>status = analisando"] --> B{"POST data-quality /process<br/>respondeu 200 em até 10 s?"}
+    B -->|"Não: timeout, rede ou HTTP diferente de 200"| F1["status = falhou<br/>error_code = DATA_QUALITY_SERVICE_UNAVAILABLE"]
+    B -->|"Sim"| C{"GET data-quality /quality/id<br/>retornou 200?"}
+    C -->|"Não"| F2["status = falhou<br/>error_code = QUALITY_DETAILS_FETCH_FAILED"]
+    C -->|"Sim"| D["status = gerando_relatorio"]
+    D --> E{"POST intelligence /synthesize<br/>respondeu 200 em até 10 s?"}
+    E -->|"Não"| F3["status = falhou<br/>error_code = INTELLIGENCE_SERVICE_UNAVAILABLE"]
+    E -->|"Sim"| OK["status = concluida"]
 
-    CloudProvider --> CloudCheck{"Sucesso na Conexão?"}
-    CloudCheck -->|"HTTP 200 (JSON Válido)"| SuccessCloud["Gera Relatório IA\n(generation_mode: llm_assisted)"]
-    CloudCheck -->|"HTTP 429/503 ou Timeout"| RulesEngine
-
-    LANProvider --> LANCheck{"Host Local Acessível?"}
-    LANCheck -->|"HTTP 200 (JSON Válido)"| SuccessLAN["Gera Relatório IA\n(generation_mode: llm_assisted)"]
-    LANCheck -->|"Timeout ou Rede Externa"| RulesEngine
-
-    RulesEngine --> DeterministicReport["Gera Relatório Determinístico\n(generation_mode: rules_only)"]
+    F1 --> UI["Frontend mostra FailureCard<br/>com mensagem amigável e código<br/>sem stack trace"]
+    F2 --> UI
+    F3 --> UI
 ```
 
-### 4.1 Provedor 1: Hugging Face Serverless Inference API (Nuvem)
+### 6.2 Catálogo de Códigos de Erro Padronizados
 
-- **Objetivo:** Prover inferência de IA sem custos e sem exigir hardware dedicado local, ideal para desenvolvimento remoto e demonstrações em nuvem.
-- **Modelo:** `Qwen/Qwen2.5-7B-Instruct`.
-- **Comunicação:** HTTPS com token de acesso pessoal (`HF_TOKEN`).
-- **Tratamento de Exceções:** Timeout estrito de 15 segundos. Se a API estiver sob cold-start (503) ou rate-limit (429), o sistema reverte para o fallback determinístico sem propagar erro ao usuário.
+| Código de Erro (`error_code`) | Origem / Ponto de Falha | Mensagem Amigável Exibida na UI |
+| :--- | :--- | :--- |
+| `INVALID_FILE_FORMAT` | Validação no `analysis-service` | Formato de arquivo inválido. Apenas arquivos CSV (.csv) são aceitos. |
+| `FILE_TOO_LARGE` | Validação de tamanho no upload | O arquivo excede o limite máximo permitido de 25MB. |
+| `STORAGE_WRITE_ERROR` | Falha de disco/IO no upload | Não foi possível gravar o arquivo temporário no storage. |
+| `DATA_QUALITY_SERVICE_UNAVAILABLE` | Chamada `POST /internal/process` | O motor determinístico de qualidade está temporariamente indisponível ou demorou a responder. |
+| `QUALITY_DETAILS_FETCH_FAILED` | Chamada `GET /internal/quality/{id}` | Não foi possível recuperar os dados de qualidade processados. |
+| `INTELLIGENCE_SERVICE_UNAVAILABLE` | Chamada `POST /internal/synthesize` | O serviço de inteligência e síntese técnica não pôde concluir o relatório. |
 
-### 4.2 Provedor 2: Servidor Ollama na Rede Local (LAN com GPU Dedicada)
+### 6.3 Estratégia de Fallback na Leitura de Relatórios
 
-- **Objetivo:** Aproveitar a infraestrutura de alto desempenho disponível na rede do laboratório/universidade (servidor com GPU dedicada, 64GB DDR5 e 2TB NVMe).
-- **Modelo Homologado:** `qwen2.5:7b` (ou `llama3.2:3b`). Oferece altíssima velocidade de geração (tokens/segundo) com consumo de VRAM perfeitamente adequado ao hardware.
-- **Configuração de Rede:**
-  - O servidor na LAN executa o daemon do Ollama com `OLLAMA_HOST=0.0.0.0:11434`.
-  - O DataGuard acessa o endpoint `http://<LAN_IP>:11434/v1/chat/completions` (compatível com a API padrão do OpenAI) ou `http://<LAN_IP>:11434/api/chat`.
-- **Vantagens da Abordagem:** Zero latência de internet, ausência de limites de requisição por minuto e isolamento completo dos dados dentro do perímetro da rede local.
-- **Resiliência:** Se a aplicação for executada fora da universidade (onde o IP da LAN não é alcançável), a tentativa de conexão sofre timeout controlado (25s) e o fallback determinístico é acionado imediatamente.
+Ao consultar o endpoint `GET /api/analyses/{id}/report`:
 
-### 4.3 Alternância Desacoplada (Switch via Variáveis de Ambiente)
+1. O `analysis-service` tenta inicialmente buscar os dados mais recentes via HTTP nos microsserviços internos (`/internal/quality/{id}` e `/internal/reports/{id}`).
+2. Caso um ou ambos os microsserviços estejam inalcançáveis no momento da leitura (ex.: serviço reiniciando ou pausado na nuvem), o orquestrador executa um **fallback automático de leitura direta nas tabelas do Supabase**.
+3. Dessa forma, análises que já foram concluídas com sucesso no passado **nunca deixam de ser visualizadas** pelo usuário devido a indisponibilidades transitórias dos serviços auxiliares.
 
-A troca entre os dois provedores ocorre sem qualquer alteração de código, unicamente ajustando o `.env`:
+### 6.4 Inicialização Resiliente da Aplicação
 
-```dotenv
-# Para usar Hugging Face:
-LLM_PROVIDER=huggingface
-HF_TOKEN=hf_xxx
-HF_MODEL_ID=Qwen/Qwen2.5-7B-Instruct
-
-# Para alternar para a máquina da universidade:
-LLM_PROVIDER=ollama
-OLLAMA_BASE_URL=http://192.168.1.100:11434
-OLLAMA_MODEL=qwen2.5:7b
-```
+Os serviços FastAPI contam com rotinas de inicialização seguras (`lifespan`): caso o banco de dados remoto esteja momentaneamente inalcançável durante a subida do container/processo, o serviço emite um log de aviso estruturado e não quebra a inicialização. Isso previne que a plataforma de hospedagem (Render) interprete o deploy como falho por falhas pontuais de conexão com o banco.
 
 ---
 
-## 5. Modelo de Domínio e Persistência de Dados
+## 7. Camada de Inteligência Artificial Híbrida e Resiliente
 
-O banco de dados relacional (PostgreSQL 16) mantém a consistência transacional e o histórico das análises.
+O `intelligence-service` implementa o padrão de projeto **Provedor Abstrato** (*Strategy Pattern*), permitindo selecionar a infraestrutura de inferência via variáveis de ambiente com garantia de fallback determinístico incondicional.
+
+```mermaid
+flowchart TD
+    CTX["Entrada: DatasetProfile + QualityFinding[]<br/>(nunca o CSV bruto)"] --> CHK{"LLM_ENABLED = true<br/>e LLM_PROVIDER diferente de disabled?"}
+    CHK -->|"Não"| RULES["RulesOnlyProvider<br/>motor heurístico determinístico"]
+    CHK -->|"Sim"| SW{"LLM_PROVIDER"}
+    SW -->|"huggingface"| HF["HuggingFaceProvider<br/>Qwen2.5-7B-Instruct<br/>timeout 15 s"]
+    SW -->|"ollama"| OL["OllamaProvider<br/>POST /api/chat, format json<br/>timeout 25 s"]
+
+    HF --> HFOK{"Resposta válida?"}
+    OL --> OLOK{"Resposta válida?"}
+    HFOK -->|"Sim, JSON"| LLM["generation_mode = llm_assisted"]
+    OLOK -->|"Sim, JSON"| LLM
+    HFOK -->|"429, 503, timeout, JSON inválido, sem token"| LOG["Log estruturado do erro<br/>e aviso de fallback"]
+    OLOK -->|"Host da LAN inacessível, timeout, JSON inválido"| LOG
+    LOG --> RULES
+
+    RULES --> RM["generation_mode = rules_only"]
+    LLM --> SAVE["Persistir em analysis_reports"]
+    RM --> SAVE
+```
+
+### 7.1 Provedores Suportados
+
+1. **Hugging Face Serverless API (Padrão em Nuvem):**
+   - **Modelo:** `Qwen/Qwen2.5-7B-Instruct`.
+   - **Comunicação:** HTTPS via API Serverless gratuita utilizando token de serviço (`HF_TOKEN`).
+   - **Controle de Timeout:** 15 segundos.
+   - **Tolerância a Falhas:** Captura status 429 (rate-limit) e 503 (cold start), acionando o fallback local sem quebrar o job.
+2. **Ollama em Servidor LAN (GPU de Alta Performance):**
+   - **Modelo:** `qwen2.5:7b` (ou `llama3.2:3b`).
+   - **Cenário:** Execução em máquina local dedicada na rede do laboratório/universidade (servidor com GPU, 64GB DDR5 e 2TB NVMe).
+   - **Comunicação:** `http://<LAN_IP>:11434/api/chat` com formato estruturado `"format": "json"`.
+   - **Controle de Timeout:** 25 segundos.
+   - **Resiliência a Desconexão:** Se o desenvolvedor ou o serviço estiver fora da rede interna, a falha de rota é capturada com log explícito e o fallback entra em ação.
+3. **Motor Heurístico Determinístico (`rules_only`):**
+   - Constrói o laudo técnico por meio de algoritmos baseados em regras codificadas em Python.
+   - Execução instantânea (latência < 5 ms), sem dependência de chaves de API, GPU ou rede externa.
+
+---
+
+## 8. Cálculo Unificado do Health Score
+
+Para prover um indicador claro e objetivo de conformidade do conjunto de dados, o `analysis-service` calcula uma nota global de 0 a 100 com base na quantidade e severidade dos achados determinísticos catalogados pelo `data-quality-service`:
+
+$$\text{Health Score} = \max\left(0, \min\left(100, 100 - (15 \times N_{\text{critical}}) - (5 \times N_{\text{warning}}) - (1 \times N_{\text{info}})\right)\right)$$
+
+- **Achados Críticos (`critical`):** Deduzem 15 pontos cada (ex.: taxas massivas de nulos em colunas-chave, anomalias estruturais severas).
+- **Achados de Alerta (`warning`):** Deduzem 5 pontos cada (ex.: duplicações parciais, colunas com tipos potencialmente corrompidos).
+- **Achados Informativos (`info`):** Deduzem 1 ponto cada (ex.: observações sobre cardinalidade ou formatações inconsistentes).
+- **Classificação:**
+  - **90 a 100:** Excelente integridade (Badge Verde).
+  - **70 a 89:** Atenção recomendada (Badge Amarelo/Warn).
+  - **Abaixo de 70:** Risco crítico de dados (Badge Vermelho/Danger).
+
+---
+
+## 9. Modelo Relacional e Persistência de Dados (Supabase)
+
+O esquema relacional garante integridade referencial através do identificador unificado `analysis_id`:
 
 ```mermaid
 erDiagram
-    ANALYSIS_JOB ||--o| DATASET_PROFILE : "possui perfil"
-    ANALYSIS_JOB ||--o{ QUALITY_FINDING : "gera achados"
-    ANALYSIS_JOB ||--o| ANALYSIS_REPORT : "produz relatorio"
+    ANALYSIS_JOBS ||--o| DATASET_PROFILES : "analysis_id"
+    ANALYSIS_JOBS ||--o{ QUALITY_FINDINGS : "analysis_id"
+    ANALYSIS_JOBS ||--o{ ANALYSIS_REPORTS : "analysis_id"
 
-    ANALYSIS_JOB {
+    ANALYSIS_JOBS {
         uuid id PK
         string original_filename
-        string storage_path
         bigint file_size_bytes
+        string file_ref
         string status
         string error_code
-        string error_message
-        timestamp created_at
-        timestamp updated_at
-        timestamp completed_at
+        text error_message
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz completed_at
     }
-
-    DATASET_PROFILE {
+    DATASET_PROFILES {
         uuid id PK
-        uuid analysis_id FK
-        integer row_count
-        integer column_count
+        uuid analysis_id
+        int row_count
+        int column_count
         jsonb columns_summary
-        timestamp generated_at
+        timestamptz generated_at
     }
-
-    QUALITY_FINDING {
+    QUALITY_FINDINGS {
         uuid id PK
-        uuid analysis_id FK
+        uuid analysis_id
         string code
         string severity
         string target_column
-        string description
+        text description
         float metric_value
-        string evidence
-        timestamp created_at
+        text evidence
     }
-
-    ANALYSIS_REPORT {
+    ANALYSIS_REPORTS {
         uuid id PK
-        uuid analysis_id FK
+        uuid analysis_id
         text executive_summary
         jsonb key_insights
         jsonb recommended_actions
         jsonb limitations
         string generation_mode
-        timestamp generated_at
+        timestamptz generated_at
     }
 ```
 
-### 5.1 Máquina de Estados da Entidade Central (`AnalysisJob`)
+---
 
-```mermaid
-stateDiagram-v2
-    [*] --> enviada: Upload concluído via POST /api/analyses
-    enviada --> validando: Leitura inicial e validação de schema
-    validando --> analisando: Cálculo de perfil estatístico e métricas
-    analisando --> gerando_relatorio: Composição de achados e insights
-    gerando_relatorio --> concluida: Relatório persistido com sucesso
-    
-    enviada --> falhou: Erro de storage ou publicação
-    validando --> falhou: CSV malformado ou encoding inválido
-    analisando --> falhou: Exceção no cálculo matemático
-    gerando_relatorio --> falhou: Falha irrecuperável de composição
-    
-    concluida --> [*]
-    falhou --> [*]
-```
+## 10. Decisões de Projeto e Limitações Conhecidas
+
+Como parte do rigor arquitetural do projeto, destacam-se decisões conscientes tomadas na fase atual (Módulo 2) e seus caminhos de mitigação:
+
+1. **Orquestração Local em Memória vs Fila Distribuída:**
+   - *Decisão Atual:* O `analysis-service` utiliza `BackgroundTasks` nativo do FastAPI para orquestrar a sequência de chamadas HTTP.
+   - *Limitação:* Se o container do `analysis-service` for reiniciado durante o processamento, a tarefa em execução em memória será interrompida e o job poderá permanecer em estado intermediário.
+   - *Mitigação Planejada:* Introdução do RabbitMQ no Módulo 4, com garantia de re-entrega de mensagens e persistência de tarefas em fila externa.
+2. **Armazenamento de Arquivos em Disco Local:**
+   - *Decisão Atual:* O CSV é gravado no sistema de arquivos local do serviço de análise e compartilhado via path (`file_ref`) ou transmitido via payload serializado.
+   - *Limitação:* Em deploys com instâncias efêmeras isoladas em hosts físicos distintos, o caminho local deixa de ser acessível entre máquinas.
+   - *Mitigação Planejada:* Uso de volumes persistentes compartilhados (`docker compose` no Módulo 3) ou buckets compatíveis com S3 (AWS/MinIO/Cloudflare R2) para produção multi-host.
+3. **Compartilhamento de Banco de Dados:**
+   - *Decisão Atual:* Os três microsserviços acessam o mesmo banco PostgreSQL no Supabase, cada qual atuando sobre suas respectivas tabelas.
+   - *Vantagem:* Permitiu implementar o mecanismo de fallback de leitura de relatórios sem necessidade de barramentos complexos.
+   - *Limitação:* Introduz acoplamento de persistência entre os serviços. A segregação completa de bancos pode ser realizada caso o volume de dados justifique partições independentes.
 
 ---
 
-## 6. Padrões de Comunicação em Sistemas Distribuídos
+## 11. Comparativo Teórico: Mensageria (RabbitMQ) vs Streaming (Kafka/Redpanda)
 
-### 6.1 Comunicação Síncrona via HTTP/REST (Módulo 2)
-
-Utilizada para consultas pontuais de leitura e sincronização de dados entre os microsserviços:
-
-- O `Data Quality Service` expõe um endpoint interno `GET /internal/quality/{analysis_id}` que permite ao `Intelligence Service` inspecionar detalhes sob demanda.
-- O `Analysis Service` expõe `GET /internal/jobs/{analysis_id}` para validação de vigência do job antes do início do processamento.
-- **Tolerância a Falhas:** Timeout de cliente de 5.0 segundos com `httpx.AsyncClient` e respostas amigáveis de erro com códigos HTTP padronizados (`503 Service Unavailable`).
-
-### 6.2 Comunicação Assíncrona via Mensageria com RabbitMQ (Módulo 4)
-
-Utilizada para o pipeline principal de processamento de dados, desacoplando o recebimento da requisição do processamento numérico e de IA.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as Usuário (Navegador)
-    participant FE as Frontend SPA (React)
-    participant AS as Analysis Service
-    participant Rabbit as RabbitMQ (AMQP)
-    participant DQ as Data Quality Service
-    participant IS as Intelligence Service
-    participant DB as PostgreSQL
-
-    User->>FE: Seleciona e envia arquivo CSV
-    FE->>AS: POST /api/analyses (multipart/form-data)
-    AS->>DB: INSERT AnalysisJob (status="enviada")
-    AS->>Rabbit: Publica "analysis.requested"
-    AS-->>FE: 202 Accepted { analysis_id, status: "enviada" }
-
-    FE->>AS: Polling: GET /api/analyses/{id}
-    AS-->>FE: Status atual ("enviada")
-
-    Rabbit->>DQ: Consome "analysis.requested"
-    DQ->>DB: UPDATE AnalysisJob (status="analisando")
-    DQ->>DQ: Processa estatísticas e regras de qualidade
-    DQ->>DB: INSERT DatasetProfile & QualityFinding[]
-    DQ->>Rabbit: Publica "analysis.quality.completed"
-    DQ-->>Rabbit: basic_ack (confirmação manual)
-
-    Rabbit->>IS: Consome "analysis.quality.completed"
-    IS->>DB: UPDATE AnalysisJob (status="gerando_relatorio")
-    IS->>IS: Constrói relatório (HF Cloud, Ollama LAN ou Regras)
-    IS->>DB: INSERT AnalysisReport
-    IS->>Rabbit: Publica "analysis.completed"
-    IS-->>Rabbit: basic_ack
-
-    Rabbit->>AS: Consome "analysis.completed"
-    AS->>DB: UPDATE AnalysisJob (status="concluida")
-    AS-->>Rabbit: basic_ack
-
-    FE->>AS: Polling: GET /api/analyses/{id}
-    AS-->>FE: Status atual ("concluida")
-    FE->>AS: GET /api/analyses/{id}/report
-    AS-->>FE: 200 OK (Relatório e Métricas)
-    FE->>User: Exibe Dashboard e Gráficos de Qualidade
-```
-
-### 6.3 Garantias de Entrega e Confiabilidade
-
-- **Confirmação Manual de Mensagens (ACK):** O consumidor apenas envia o `basic_ack` após a persistência segura do resultado no banco de dados.
-- **Idempotência:** Cada consumidor verifica se o `analysis_id` já foi processado ou se o job já se encontra em estado avançado, descartando mensagens duplicadas provenientes de retentativas de rede.
-- **Dead Letter Queue (DLQ):** Mensagens com dados permanentemente corrompidos ou que ultrapassarem 3 tentativas de re-enfileiramento são rejeitadas com `basic_nack(requeue=False)` e direcionadas automaticamente para a fila `dataguard.deadletter.queue`.
-
----
-
-## 7. Estudo Comparativo: Mensageria (RabbitMQ) vs Streaming de Eventos (Kafka/Redpanda)
-
-Para atender formalmente ao requisito teórico e projetual do **Módulo 4** da disciplina, estabelece-se a análise técnica e o dimensionamento comparativo entre as duas tecnologias.
+Para fundamentação teórica de sistemas distribuídos e atendimento aos requisitos do Módulo 4:
 
 ```mermaid
 flowchart TD
-    subgraph Mensageria["Abordagem por Mensageria Tradicional (RabbitMQ - Implementado)"]
-        P1["Produtor (Analysis Service)"] -->|Publica| EX["Exchange"]
-        EX -->|Roteia| Q1["Fila de Tarefas"]
+    subgraph Mensageria["Abordagem por Mensageria Tradicional (RabbitMQ - Planejado no Módulo 4)"]
+        P1["Produtor (Analysis Service)"] -->|Publica| EX["Exchange: dataguard.exchange"]
+        EX -->|Roteia| Q1["Fila de Tarefas: analysis.requested"]
         Q1 -->|Entrega e Remove após ACK| C1["Consumidor (Data Quality)"]
     end
 
@@ -387,32 +395,12 @@ flowchart TD
 
 <div align="center">
 
-| Critério Arquitetural | RabbitMQ (Implementação Atual) | Apache Kafka / Redpanda (Cenário de Streaming) |
+| Critério Arquitetural | RabbitMQ (Planejado para o DataGuard) | Apache Kafka / Redpanda (Streaming) |
 | :--- | :--- | :--- |
-| **Paradigma Central** | **Broker de Mensagens Inteligente:** Focado em filas de trabalho, roteamento flexível e entrega pontual. | **Log Distribuído Gravado em Disco:** Focado em retenção durável, sequencial e imutável de eventos ordenados. |
-| **Ciclo de Vida do Dado** | Transiente: A mensagem é excluída da fila assim que o consumidor envia a confirmação (`basic_ack`). | Durável: Os eventos permanecem gravados no log de acordo com a política de retenção temporal ou volumétrica. |
-| **Controle de Leitura** | Gerenciado pelo broker: o RabbitMQ monitora o envio e o ACK de cada mensagem. | Gerenciado pelo consumidor: cada grupo mantém seu próprio ponteiro de leitura (**offset**). |
-| **Capacidade de Replay** | Baixa / Inexistente de forma nativa sem re-publicação explícita. | Alta: Permite reposicionar o offset no passado e reprocessar todo o histórico de eventos. |
-| **Adequação ao DataGuard** | **Ideal para o escopo do projeto:** Distribuição de tarefas unitárias entre workers de backend com orquestração simples via Docker. | Justificável caso o DataGuard evoluísse para ingestão massiva de telemetria em tempo real ou auditoria contínua de streams. |
+| **Paradigma Central** | **Broker de Mensagens Inteligente:** Focado em filas de trabalho pontuais e roteamento flexível. | **Log Distribuído Gravado em Disco:** Focado em retenção durável e imutável de eventos ordenados. |
+| **Ciclo de Vida do Dado** | Transiente: A mensagem é excluída da fila assim que o worker confirma o processamento (`basic_ack`). | Durável: Eventos permanecem gravados de acordo com a política de retenção em disco configurada. |
+| **Controle de Leitura** | Gerenciado pelo broker: o RabbitMQ monitora o envio e a confirmação de cada mensagem. | Gerenciado pelo consumidor: cada grupo mantém seu próprio ponteiro de leitura (**offset**). |
+| **Capacidade de Replay** | Baixa ou inexistente sem republicação explícita de mensagens. | Alta: Permite reposicionar o offset no passado e reprocessar eventos a qualquer momento. |
+| **Adequação ao DataGuard** | **Ideal para o projeto:** Cada upload de arquivo CSV é uma tarefa unitária de processamento analítico discreto. | Superdimensionado para o escopo atual; seria justificável para ingestão massiva de telemetria contínua. |
 
 </div>
-
----
-
-## 8. Estratégia de Conteinerização e Execução em Nuvem
-
-### 8.1 Orquestração Completa com Docker Compose (Módulo 3)
-
-O ambiente distribuído é executado através do comando `docker compose up --build`, instanciando:
-
-- Aplicação Frontend (`frontend`) em container Node/Nginx servindo na porta `3000`.
-- Três microsserviços de backend Python/FastAPI (`analysis-service:8000`, `data-quality-service:8001`, `intelligence-service:8002`).
-- Um container de banco de dados (`postgres:16-alpine`) com volume persistente nomeado (`postgres_data`).
-- Um container de broker de mensageria (`rabbitmq:3.13-management-alpine`) expondo a porta AMQP (`5672`) e a interface administrativa (`15672`).
-- Um volume compartilhado (`storage_volume`) montado em `/app/storage` para trânsito dos arquivos CSV entre containers.
-
-### 8.2 Implantação em Nuvem (Módulo 1)
-
-- **Hospedagem da API:** Deploy do serviço `analysis-service` em plataforma com free tier (Render, Fly.io ou Railway).
-- **Banco Remoto:** PostgreSQL gerenciado em nuvem (Neon DB ou Supabase).
-- **Variáveis de Ambiente na Nuvem:** Todas as chaves e strings de conexão injetadas através do painel de controle do provedor, sem exposição de credenciais em repositório.

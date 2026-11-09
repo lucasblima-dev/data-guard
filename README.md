@@ -6,7 +6,6 @@
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18/19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
@@ -42,6 +41,9 @@
 O **DataGuard** é uma plataforma distribuída voltada para inspeção automatizada, perfilamento e validação de qualidade de dados em arquivos tabulares (iniciando em CSV).
 
 O sistema resolve a fricção manual na auditoria de dados: ao receber um conjunto de dados, processa métricas estatísticas determinísticas (valores nulos, discrepâncias de tipos, duplicatas, distribuições e anomalias numéricas), consolida achados com evidências rastreáveis e disponibiliza um relatório técnico enriquecido com insights explicativos gerados por inteligência artificial (com suporte híbrido a Hugging Face Serverless ou servidor local Ollama com aceleração por GPU via rede interna).
+
+> [!NOTE]
+> Link para o Site: [DataGuard](https://front-dataguard.onrender.com)
 
 > Link para acesso do vídeo da aplicação: [Drive](https://drive.google.com/drive/folders/1bpTWVVEwc29gwO0NFA7Wx9M-6civY-Df?usp=sharing)
 
@@ -201,6 +203,12 @@ flowchart LR
 
   *(Em ambientes Linux/macOS, utilize `./scripts/test_api.sh`)*
 
+### Módulo 2: Serviços e Microsserviços
+
+- **Entregável:** Decomposição da solução em 3 serviços independentes e frontend desacoplado.
+- **Comunicação:** Chamadas síncronas HTTP entre os serviços com tratamento de erros (timeouts e fallbacks amigáveis).
+- **Artefatos:** Diagrama arquitetural detalhado dos fluxos e documentação dos contratos de interface.
+
 ---
 
 ## Tecnologias Utilizadas
@@ -239,7 +247,8 @@ data-guard/
 │   └── test_api.sh                     # Script Bash/cURL para ambientes Unix
 │
 ├── docs/                               # Documentação técnica e acadêmica
-│   └── ARQUITETURA.md                  # Especificação profunda da arquitetura distribuída
+│   ├── ARQUITETURA.md                  # Especificação profunda da arquitetura distribuída
+│   └── ARQUITETURA_FRONTEND.md         # Arquitetura da camada de apresentação (SPA)
 │
 ├── frontend/                           # Aplicação Web SPA desacoplada
 │   ├── Dockerfile                      # Multi-stage build (Vite -> Nginx)
@@ -360,5 +369,6 @@ LLM_ENABLED=false
 
 ## Documentação Complementar
 
-- **[Especificação de Arquitetura Técnica](docs/ARQUITETURA.md):** Detalhamento dos padrões distribuídos, contratos de mensagens, diagramas de sequência, topologia do frontend e modelagem de entidades.
+- **[Especificação de Arquitetura Técnica](docs/ARQUITETURA.md):** Detalhamento dos padrões distribuídos, contratos de mensagens, diagramas de sequência, fluxos de falha e modelagem de entidades.
+- **[Arquitetura do Frontend](docs/ARQUITETURA_FRONTEND.md):** Especificação da aplicação SPA desacoplada, ciclo de vida do polling, máquina de estados visual, tolerância a falhas e design system.
 - **[Diretrizes para Agentes e Desenvolvedores](AGENTS.md):** Manual de operação para agentes autônomos de código, fluxos de trabalho, regras de validação e Definição de Pronto (DoD).

@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Inbox, Search, TriangleAlert } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Inbox, Search, TriangleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../../components/layout/PageHeader";
@@ -61,8 +61,8 @@ export function HistoryPage() {
       <StatsRow stats={stats} unavailable={!stats && !loading && error !== null} />
 
       <Card className="overflow-hidden">
-        <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
-          <label className="flex h-9 items-center gap-2 rounded-full border border-line bg-fg/[0.03] px-3.5 focus-within:border-line-strong lg:w-72">
+        <div className="flex flex-col gap-3 p-4 xl:flex-row xl:items-center xl:justify-between">
+          <label className="flex h-9 items-center gap-2 rounded-full border border-line bg-fg/[0.03] px-3.5 focus-within:border-line-strong xl:w-72">
             <Search className="size-3.5 text-fg-subtle" strokeWidth={1.75} />
             <input
               value={query}
@@ -73,10 +73,33 @@ export function HistoryPage() {
             />
           </label>
 
+          {/* Celular: seletor unico (7 botoes nao cabem de forma organizada) */}
+          <label className="relative md:hidden">
+            <span className="sr-only">Filtrar por status</span>
+            <select
+              value={status ?? ""}
+              onChange={(e) => {
+                setStatus((e.target.value || undefined) as JobStatus | undefined);
+                setPage(1);
+              }}
+              className="focus-ring h-10 w-full appearance-none rounded-full border border-line bg-fg/[0.03] pl-4 pr-10 text-sm text-fg outline-none"
+            >
+              {filters.map((f) => (
+                <option key={f.label} value={f.value ?? ""} className="bg-surface-solid text-fg">
+                  {f.value ? `Status: ${f.label}` : "Todos os status"}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-fg-subtle"
+              strokeWidth={1.75}
+            />
+          </label>
+
           <div
             role="group"
             aria-label="Filtrar por status"
-            className="flex max-w-full gap-0.5 overflow-x-auto rounded-full border border-line bg-fg/[0.03] p-1"
+            className="hidden max-w-full flex-wrap gap-0.5 rounded-2xl border border-line bg-fg/[0.03] p-1 md:flex"
           >
             {filters.map((f) => {
               const active = f.value === status;

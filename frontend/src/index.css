@@ -171,6 +171,8 @@
 @layer base {
   html {
     background-color: var(--dg-canvas);
+    /* Rede de seguranca: nenhum elemento deve permitir rolagem lateral da pagina. */
+    overflow-x: clip;
     color: var(--dg-fg);
     font-family: var(--font-sans);
     font-feature-settings: "cv11", "ss01", "tnum";

@@ -22,7 +22,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
         type="button"
         onClick={() => setTheme(next)}
         aria-label={next === "light" ? "Mudar para o modo claro" : "Mudar para o modo escuro"}
-        className="focus-ring grid size-9 place-items-center rounded-full text-fg-muted transition-colors hover:bg-fg/5 hover:text-fg"
+        className="focus-ring grid size-10 place-items-center rounded-xl text-fg-muted transition-colors hover:bg-fg/5 hover:text-fg"
       >
         <Icon className="size-4" strokeWidth={1.9} />
       </button>

@@ -1,50 +1,51 @@
 import { motion } from "framer-motion";
 import { stagger } from "../../lib/motion";
 import type { FullAnalysisDetails } from "../../types/analysis";
-import { ExecutiveSummary, InsightCards } from "../report/ExecutiveReport";
-import { DatasetMap } from "./DatasetMap";
+import { ExecutiveSummary, ReportFooterCards } from "../report/ExecutiveReport";
+import { ColumnsProfile } from "./ColumnsProfile";
 import { FindingsPanel } from "./FindingsPanel";
 import { HealthHero } from "./HealthHero";
-import { NullsChart } from "./NullsChart";
-import { TypeMix } from "./TypeMix";
 
-/** Resultado da analise em blocos (bento). Exige o perfil do dataset. */
 interface Props {
   details: FullAnalysisDetails;
   /** Mantem os blocos ocultos (durante a animacao de conclusao). */
   hold?: boolean;
   /** O hero ja mostrou o total de registros: nao conta de novo. */
   instantHero?: boolean;
+  onPrint: () => void;
 }
 
-export function ResultsDashboard({ details, hold = false, instantHero = false }: Props) {
+/**
+ * Resultado da analise em blocos, do geral ao especifico:
+ * veredito (hero + resumo) -> achados com acoes -> perfil das colunas -> acoes e limitacoes.
+ */
+export function ResultsDashboard({ details, hold = false, instantHero = false, onPrint }: Props) {
   const { profile, report } = details;
   if (!profile) return null;
   const findings = details.findings ?? [];
 
   return (
-    <motion.div variants={stagger(0.05)} initial="hidden" animate={hold ? "hidden" : "show"} className="grid gap-4 lg:grid-cols-12">
-      <div className="lg:col-span-8">
+    <motion.div
+      variants={stagger(0.05)}
+      initial="hidden"
+      animate={hold ? "hidden" : "show"}
+      className="grid gap-4 xl:grid-cols-12"
+    >
+      <div className={`${report ? "xl:col-span-8" : "xl:col-span-12"} [&>*]:h-full`}>
         <HealthHero
           profile={profile}
           findings={findings}
           score={details.health_score ?? null}
-          onPrint={() => window.print()}
+          onPrint={onPrint}
           instant={instantHero}
         />
       </div>
-      <FindingsPanel findings={findings} />
-      <div className="lg:col-span-4">
-        <DatasetMap profile={profile} />
-      </div>
-      <div className="lg:col-span-4">
-        <NullsChart profile={profile} />
-      </div>
-      <div className="lg:col-span-4">
-        <TypeMix profile={profile} />
-      </div>
       {report && <ExecutiveSummary report={report} />}
-      {report && <InsightCards report={report} />}
+
+      <FindingsPanel findings={findings} report={report} />
+      <ColumnsProfile profile={profile} findings={findings} />
+
+      {report && <ReportFooterCards report={report} />}
     </motion.div>
   );
 }

@@ -35,7 +35,7 @@ export function HealthHero({ profile, findings, score, onPrint, instant = false 
         ))}
       </div>
 
-      <div className="relative flex flex-col justify-between gap-8 sm:flex-row sm:items-center">
+      <div className="relative flex flex-col justify-between gap-8 sm:flex-row sm:flex-wrap sm:items-center">
         <div className="flex flex-col gap-5">
           <p className="text-sm font-medium opacity-75">Registros analisados</p>
           <CountUp
@@ -43,7 +43,7 @@ export function HealthHero({ profile, findings, score, onPrint, instant = false 
             instant={instant}
             value={profile.row_count}
             duration={1.1}
-            className="text-6xl font-semibold leading-none tracking-tighter sm:text-8xl"
+            className="text-6xl font-semibold leading-none tracking-tighter sm:text-7xl 2xl:text-8xl"
           />
           <div className="flex flex-wrap gap-2 text-xs font-medium">
             <span className="rounded-full bg-black/10 px-3 py-1">{profile.column_count} colunas</span>
@@ -57,7 +57,7 @@ export function HealthHero({ profile, findings, score, onPrint, instant = false 
             transition={tweenSnap}
             className="focus-ring mt-2 inline-flex h-11 w-fit items-center gap-3 rounded-full bg-canvas pl-5 pr-1.5 text-sm font-medium text-fg"
           >
-            Imprimir laudo
+            Gerar relatório
             <span className="grid size-8 place-items-center rounded-full bg-accent text-accent-fg">
               <Printer className="size-3.5" strokeWidth={2} />
             </span>

@@ -11,6 +11,8 @@ import { formatBytes, formatDate, formatTime } from "../../lib/format";
 import { tweenExit } from "../../lib/motion";
 import { jobStatusMeta } from "../../lib/status";
 import { ResultsDashboard } from "../quality/ResultsDashboard";
+import { PrintReport } from "../report/PrintReport";
+import { openPrintDialog } from "../report/openPrintDialog";
 import type { JobStatus } from "../../types/analysis";
 import { CompletionReveal } from "./CompletionReveal";
 import { FailureCard } from "./FailureCard";
@@ -156,9 +158,18 @@ export function AnalysisPage() {
               text="A análise foi concluída, mas o relatório detalhado ainda não está disponível no serviço."
             />
           )}
-          {details?.profile && <ResultsDashboard details={details} hold={holding} instantHero={celebrated} />}
+          {details?.profile && (
+            <ResultsDashboard
+              details={details}
+              hold={holding}
+              instantHero={celebrated}
+              onPrint={() => openPrintDialog(job.original_filename)}
+            />
+          )}
         </div>
       )}
+
+      {done && details?.profile && <PrintReport job={job} details={details} />}
 
       <AnimatePresence>
         {celebrating && (

@@ -7,6 +7,7 @@ import type {
   AnalysisJob,
   ColumnSummary,
   FullAnalysisDetails,
+  JobListResponse,
   JobStatus,
   QualityFinding,
   QualityReport,
@@ -43,6 +44,8 @@ interface MockJobRecord {
   createdAt: number; // epoch ms
   /** Nomes de arquivo contendo "falha" ou "erro" simulam um job que falha. */
   willFail: boolean;
+  /** Status permanente (jobs de exemplo do historico): ignora a linha do tempo. */
+  fixedStatus?: JobStatus;
 }
 
 const STORAGE_KEY = "dg-mock-jobs";
@@ -65,8 +68,42 @@ function saveJobs(jobs: Record<string, MockJobRecord>): void {
 
 const memory: Record<string, MockJobRecord> = loadJobs();
 
+/* Jobs de exemplo: dao vida ao historico no modo simulado (sempre presentes). */
+const MIN = 60_000;
+const HOUR = 60 * MIN;
+const DAY = 24 * HOUR;
+const SEED_SPECS: { name: string; size: number; status: JobStatus; age: number }[] = [
+  { name: "clientes_cadastros_out26.csv", size: 4_800_000, status: "analisando", age: 6 * MIN },
+  { name: "logistica_entregas.csv", size: 2_300_000, status: "gerando_relatorio", age: 22 * MIN },
+  { name: "vendas_2026.csv", size: 14_876_000, status: "concluida", age: 2 * HOUR },
+  { name: "dump_invalido_corrompido.csv", size: 1_100_000, status: "falhou", age: 3 * HOUR },
+  { name: "estoque_outubro.csv", size: 220_000, status: "concluida", age: 5 * HOUR },
+  { name: "pedidos_q3_2026.csv", size: 9_400_000, status: "concluida", age: DAY },
+  { name: "financeiro_setembro.csv", size: 6_100_000, status: "concluida", age: DAY + 4 * HOUR },
+  { name: "rh_colaboradores.csv", size: 880_000, status: "concluida", age: 2 * DAY },
+  { name: "campanhas_marketing.csv", size: 3_400_000, status: "concluida", age: 3 * DAY },
+  { name: "sensores_iot_amostra.csv", size: 48_000_000, status: "falhou", age: 3 * DAY + 6 * HOUR },
+  { name: "produtos_catalogo.csv", size: 1_900_000, status: "concluida", age: 4 * DAY },
+  { name: "tickets_suporte.csv", size: 5_200_000, status: "concluida", age: 6 * DAY },
+];
+
+const bootTime = Date.now();
+const seeds: Record<string, MockJobRecord> = Object.fromEntries(
+  SEED_SPECS.map((s, i): [string, MockJobRecord] => {
+    const id = `00000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`;
+    return [
+      id,
+      { id, filename: s.name, size: s.size, createdAt: bootTime - s.age, willFail: s.status === "falhou", fixedStatus: s.status },
+    ];
+  }),
+);
+
+function findRecord(id: string): MockJobRecord | undefined {
+  return memory[id] ?? seeds[id];
+}
+
 export function isMockJob(id: string): boolean {
-  return id in memory;
+  return id in memory || id in seeds;
 }
 
 /** Linha do tempo (ms desde a criacao) em que cada status e atingido. */
@@ -87,7 +124,7 @@ function statusAt(rec: MockJobRecord, elapsed: number): JobStatus {
 
 function toJob(rec: MockJobRecord): AnalysisJob {
   const elapsed = Date.now() - rec.createdAt;
-  const status = statusAt(rec, elapsed);
+  const status = rec.fixedStatus ?? statusAt(rec, elapsed);
   const terminal = status === "concluida" || status === "falhou";
   const created = new Date(rec.createdAt).toISOString();
   return {
@@ -122,7 +159,7 @@ export async function mockCreateAnalysis(file: File, signal?: AbortSignal): Prom
   const simulated = simulatedUploadError(file.name);
   if (simulated) throw simulated;
   const rec: MockJobRecord = {
-    id: crypto.randomUUID(),
+    id: uuid(),
     filename: file.name,
     size: file.size,
     createdAt: Date.now(),
@@ -134,7 +171,30 @@ export async function mockCreateAnalysis(file: File, signal?: AbortSignal): Prom
 }
 
 export function mockGetAnalysis(id: string): AnalysisJob {
-  return toJob(memory[id]);
+  const rec = findRecord(id);
+  if (!rec) throw apiErrorFromStatus(404);
+  return toJob(rec);
+}
+
+/** Listagem paginada simulada: jobs enviados nesta sessao + os de exemplo, do mais novo ao mais antigo. */
+export async function mockListAnalyses(
+  params: { page?: number; pageSize?: number; status?: JobStatus },
+  signal?: AbortSignal,
+): Promise<JobListResponse> {
+  await mockDelay(250, signal);
+  const page = params.page ?? 1;
+  const pageSize = params.pageSize ?? 10;
+  const all = [...Object.values(memory), ...Object.values(seeds)]
+    .map(toJob)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const filtered = params.status ? all.filter((j) => j.status === params.status) : all;
+  return {
+    items: filtered.slice((page - 1) * pageSize, page * pageSize),
+    total: filtered.length,
+    page,
+    page_size: pageSize,
+    total_pages: Math.ceil(filtered.length / pageSize),
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -186,7 +246,7 @@ export function buildMockDetails(job: AnalysisJob): FullAnalysisDetails {
   const analysisId = job.id;
 
   const profile = {
-    id: crypto.randomUUID(),
+    id: uuid(),
     analysis_id: analysisId,
     row_count: ROWS,
     column_count: 9,
@@ -216,7 +276,7 @@ export function buildMockDetails(job: AnalysisJob): FullAnalysisDetails {
     metric_value: number | null,
     evidence: string | null,
   ): QualityFinding => ({
-    id: crypto.randomUUID(),
+    id: uuid(),
     analysis_id: analysisId,
     code,
     severity,
@@ -237,7 +297,7 @@ export function buildMockDetails(job: AnalysisJob): FullAnalysisDetails {
   ];
 
   const report: QualityReport = {
-    id: crypto.randomUUID(),
+    id: uuid(),
     analysis_id: analysisId,
     generation_mode: "llm_assisted",
     generated_at: now,
@@ -278,4 +338,17 @@ export function buildMockDetails(job: AnalysisJob): FullAnalysisDetails {
 export async function mockGetAnalysisReport(id: string, signal?: AbortSignal): Promise<FullAnalysisDetails> {
   await mockDelay(MOCK_LATENCY_MS, signal);
   return buildMockDetails(mockGetAnalysis(id));
+}
+
+/**
+ * UUID v4 que tambem funciona em contexto inseguro. `crypto.randomUUID` so existe em HTTPS
+ * ou localhost: abrindo o app pelo IP da rede (http://192.168...), ele e undefined.
+ */
+function uuid(): string {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }

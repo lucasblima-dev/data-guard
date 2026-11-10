@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Loader2, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createAnalysis } from "../../api/analysesApi";
+import { createAnalysis, wakeBackend } from "../../api/analysesApi";
 import { ApiError } from "../../api/client";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Button } from "../../components/ui/Button";
@@ -23,6 +23,22 @@ export function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<{ title: string; message: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [slow, setSlow] = useState(false);
+
+  // Acorda o servico (plano gratuito) enquanto o usuario escolhe o arquivo.
+  useEffect(() => {
+    wakeBackend();
+  }, []);
+
+  // Se o envio demora, explica o motivo em vez de parecer travado.
+  useEffect(() => {
+    if (!submitting) {
+      setSlow(false);
+      return;
+    }
+    const t = window.setTimeout(() => setSlow(true), 6000);
+    return () => window.clearTimeout(t);
+  }, [submitting]);
 
   // Soltar fora da area nao deve fazer o navegador abrir o arquivo.
   useEffect(() => {
@@ -35,10 +51,28 @@ export function UploadPage() {
     };
   }, []);
 
-  const handleSelect = (picked: File) => {
+  const handleSelect = async (picked: File) => {
     const problem = validateCsv(picked);
-    setError(problem ? { title: "Arquivo inválido", message: problem } : null);
-    setFile(problem ? null : picked);
+    if (problem) {
+      setError({ title: "Arquivo inválido", message: problem });
+      setFile(null);
+      return;
+    }
+    // Copia o conteudo para a memoria ja na selecao. No celular, arquivos vindos de nuvem
+    // (Drive, iCloud) ou "Downloads" podem mudar ou sumir antes do envio e o navegador
+    // aborta o upload com um erro de rede generico (ERR_UPLOAD_FILE_CHANGED).
+    try {
+      const content = await picked.arrayBuffer();
+      setFile(new File([content], picked.name, { type: "text/csv", lastModified: picked.lastModified }));
+      setError(null);
+    } catch {
+      setFile(null);
+      setError({
+        title: "Não foi possível ler o arquivo",
+        message:
+          "O navegador não conseguiu abrir o arquivo. Se ele está no Google Drive ou em outro aplicativo, baixe-o para o aparelho e selecione novamente.",
+      });
+    }
   };
 
   const handleSubmit = async () => {
@@ -65,8 +99,8 @@ export function UploadPage() {
         description="Perfile e audite a qualidade dos seus dados tabulares."
       />
 
-      <motion.div variants={stagger(0.05)} initial="hidden" animate="show" className="grid gap-4 lg:grid-cols-12">
-        <motion.div variants={fadeUp} className="space-y-5 lg:col-span-8">
+      <motion.div variants={stagger(0.05)} initial="hidden" animate="show" className="grid gap-4 xl:grid-cols-12">
+        <motion.div variants={fadeUp} className="space-y-5 xl:col-span-8">
           <Dropzone
             file={file}
             disabled={submitting}
@@ -97,6 +131,20 @@ export function UploadPage() {
             )}
           </AnimatePresence>
 
+          <AnimatePresence initial={false}>
+            {slow && (
+              <motion.p
+                role="status"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="text-sm text-fg-muted"
+              >
+                O servidor está iniciando (plano gratuito) e pode levar até 1 minuto. Mantenha esta tela aberta.
+              </motion.p>
+            )}
+          </AnimatePresence>
+
           <div className="flex justify-end">
             <Button variant="primary" className="h-11 px-6" disabled={!file || submitting} onClick={handleSubmit}>
               {submitting ? (
@@ -114,7 +162,7 @@ export function UploadPage() {
           </div>
         </motion.div>
 
-        <div className="space-y-4 lg:col-span-4">
+        <div className="space-y-4 xl:col-span-4">
           <Card className="p-6">
             <h3 className="text-sm font-medium">O que acontece depois</h3>
             <ol className="mt-5 space-y-4">

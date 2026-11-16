@@ -313,7 +313,7 @@ data-guard/
    cp .env.example .env
    ```
 
-3. Inicialize a interface, os serviços de backend, o banco e o broker:
+3. Construa as imagens e inicialize a interface, os serviços de backend e o banco:
 
    ```bash
    docker compose up --build -d
@@ -330,7 +330,50 @@ data-guard/
    - **Analysis Service (API & Swagger):** [http://localhost:8000/docs](http://localhost:8000/docs)
    - **Data Quality Service:** [http://localhost:8001/docs](http://localhost:8001/docs)
    - **Intelligence Service:** [http://localhost:8002/docs](http://localhost:8002/docs)
-   - **Painel Administrativo do RabbitMQ:** [http://localhost:15672](http://localhost:15672) (Credenciais: `guest` / `guest` em desenvolvimento local)
+
+   O ambiente do Módulo 3 sobe 5 containers: `postgres`, `analysis-service`, `data-quality-service`, `intelligence-service` e `frontend` (Nginx). O RabbitMQ entra apenas no Módulo 4. Os serviços `8001` e `8002` são publicados somente em `127.0.0.1`, para inspeção; o frontend conversa exclusivamente com o `analysis-service`.
+
+6. Para abrir a interface em outro aparelho da rede (por exemplo, o celular), defina no `.env` a URL da API vista pelo navegador **antes** de construir e reconstrua o frontend:
+
+   ```dotenv
+   VITE_API_URL=http://192.168.0.10:8000/api
+   ```
+
+   ```bash
+   docker compose up --build -d frontend
+   ```
+
+#### Teste de persistência (`docker compose down` / `up`)
+
+1. Com o ambiente no ar, envie um CSV pela interface e aguarde a análise ficar `concluída`.
+2. Derrube os containers (os volumes são mantidos):
+
+   ```bash
+   docker compose down
+   ```
+
+3. Suba novamente, sem reconstruir:
+
+   ```bash
+   docker compose up -d
+   ```
+
+4. Abra o **Histórico**: a análise continua lá, com o mesmo ID e o mesmo relatório. Os dados vivem nos volumes nomeados `pgdata` (PostgreSQL) e `storage` (CSVs enviados).
+5. Para apagar também os dados, use `docker compose down -v`.
+
+#### Comparação: deploy direto (Módulos 1 e 2) vs. containers (Módulo 3)
+
+| Aspecto | Deploy direto (Render + Supabase) | Containers (Docker Compose) |
+| :--- | :--- | :--- |
+| **Empacotamento** | Código-fonte; a plataforma instala as dependências no build | Imagem imutável por serviço, descrita no `Dockerfile` |
+| **Reprodutibilidade** | Depende das versões de Python e Node da plataforma (fixadas por variável) | A mesma imagem roda igual em qualquer máquina |
+| **Banco de dados** | Supabase remoto | PostgreSQL em container, com volume persistente |
+| **Arquivos enviados** | Disco efêmero de cada serviço, sem compartilhamento | Volume `storage` compartilhado: o `data-quality-service` lê o CSV real |
+| **Rede entre serviços** | URLs públicas `onrender.com` | Nome do serviço na rede interna do Compose |
+| **Subir o ambiente** | 4 serviços configurados no painel ou no `render.yaml` | Um comando: `docker compose up --build` |
+| **Limites** | Plano gratuito hiberna (cold start de ~40 s) | Sem hibernação, mas consome recursos da máquina local |
+
+**O que ficou mais fácil:** reproduzir o ambiente completo, isolar dependências e compartilhar o CSV entre serviços. **O que ficou mais difícil:** escrever e manter os Dockerfiles, entender volumes e permissões, e o tempo de build das imagens (principalmente com Pandas). Nesta entrega o Docker é usado apenas localmente; o deploy no Render continua direto do código-fonte.
 
 ---
 

@@ -79,6 +79,38 @@ flowchart LR
     IS --> PG
 ```
 
+### 2.3 Topologia Local Conteinerizada (Módulo 3)
+
+Para execução local, o `docker-compose.yml` da raiz sobe cinco containers em uma rede interna `dataguard`, com dois volumes nomeados. O banco é um PostgreSQL 16 em container (substitui o Supabase apenas neste ambiente) e as chamadas entre serviços usam o nome do serviço no lugar das URLs públicas do Render:
+
+```mermaid
+flowchart LR
+    U(["Navegador"])
+
+    subgraph COMPOSE["Docker Compose - rede dataguard"]
+        FE["frontend<br/>Nginx :8080<br/>host :3000"]
+        AS["analysis-service<br/>:8000"]
+        DQ["data-quality-service<br/>:8001"]
+        IS["intelligence-service<br/>:8002"]
+        PG[("postgres :5432")]
+        V1[/"volume pgdata"/]
+        V2[/"volume storage"/]
+    end
+
+    U -->|"http://localhost:3000"| FE
+    U -->|"REST http://localhost:8000/api"| AS
+    AS -->|"HTTP /internal"| DQ
+    AS -->|"HTTP /internal"| IS
+    AS --> PG
+    DQ --> PG
+    IS --> PG
+    PG --- V1
+    AS ---|"leitura e escrita do CSV"| V2
+    DQ ---|"leitura do CSV"| V2
+```
+
+O volume `storage` resolve, localmente, o compartilhamento do arquivo enviado: o `analysis-service` grava o CSV e o `data-quality-service` o lê pelo mesmo `file_ref`. Cada imagem usa build em dois estágios (dependências em um virtualenv e imagem final `python:3.11-slim` sem cache do `pip`), roda como usuário não-root e expõe um `HEALTHCHECK` sobre `/health`; o Compose só inicia um serviço depois que suas dependências estão saudáveis.
+
 ---
 
 ## 3. Delimitação de Responsabilidades dos Microsserviços

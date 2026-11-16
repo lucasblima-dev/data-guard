@@ -209,6 +209,12 @@ flowchart LR
 - **Comunicação:** Chamadas síncronas HTTP entre os serviços com tratamento de erros (timeouts e fallbacks amigáveis).
 - **Artefatos:** Diagrama arquitetural detalhado dos fluxos e documentação dos contratos de interface.
 
+### Módulo 3: Containers
+
+- **Entregável:** Empacotamento de todos os componentes através de `Dockerfile` em camadas otimizadas e orquestração de ambiente por `docker-compose.yml`.
+- **Persistência:** Volumes declarativos para PostgreSQL e arquivos locais, garantindo retenção de dados após ciclos de `docker compose down` e `docker compose up`.
+- **Artefatos:** Guia comparativo entre execução bare-metal/deploy direto e execução conteinerizada.
+
 ---
 
 ## Tecnologias Utilizadas

@@ -1,10 +1,6 @@
-# DataGuard - ambiente local conteinerizado (Modulo 3).
-# Sobe: PostgreSQL + analysis-service + data-quality-service + intelligence-service + frontend.
-# Uso:  cp .env.example .env   (defina POSTGRES_PASSWORD)   ->   docker compose up --build -d
 name: dataguard
 
 services:
-  # ---------------------------------------------------------------- Banco
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -15,13 +11,12 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
       interval: 5s
       timeout: 5s
       retries: 12
-    networks: [dataguard]
+    networks: [ dataguard ]
 
-  # ---------------------------------------------------- Motor analitico (Pandas)
   data-quality-service:
     build: ./services/data-quality-service
     image: dataguard/data-quality-service:local
@@ -35,14 +30,11 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dataguard}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-dataguard}
       STORAGE_DIR: /app/storage
     volumes:
-      # Mesmo volume do analysis-service: o servico so le o CSV indicado no file_ref.
-      # Montado sem :ro para o Docker inicializar o volume com o dono correto (uid 10001).
       - storage:/app/storage
     ports:
-      - "127.0.0.1:8001:8001" # apenas para inspecao local (Swagger); o frontend nunca acessa
-    networks: [dataguard]
+      - "127.0.0.1:8001:8001"
+    networks: [ dataguard ]
 
-  # ------------------------------------------------- Sintese do laudo (regras + IA)
   intelligence-service:
     build: ./services/intelligence-service
     image: dataguard/intelligence-service:local
@@ -64,9 +56,8 @@ services:
       - "host.docker.internal:host-gateway" # permite alcancar um Ollama rodando no host
     ports:
       - "127.0.0.1:8002:8002"
-    networks: [dataguard]
+    networks: [ dataguard ]
 
-  # ------------------------------------- API publica / orquestrador de jobs
   analysis-service:
     build: ./services/analysis-service
     image: dataguard/analysis-service:local
@@ -82,7 +73,6 @@ services:
       ENVIRONMENT: docker
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dataguard}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-dataguard}
-      # Chamadas entre servicos usam o nome do servico na rede interna do Compose.
       DATA_QUALITY_SERVICE_URL: http://data-quality-service:8001
       INTELLIGENCE_SERVICE_URL: http://intelligence-service:8002
       STORAGE_DIR: /app/storage
@@ -91,14 +81,12 @@ services:
       - storage:/app/storage
     ports:
       - "8000:8000"
-    networks: [dataguard]
+    networks: [ dataguard ]
 
-  # -------------------------------------------------------------- Interface web
   frontend:
     build:
       context: ./frontend
       args:
-        # URL usada pelo NAVEGADOR. Para testar de outro aparelho, use o IP da maquina.
         VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api}
         VITE_USE_MOCKS: "false"
         VITE_MAX_UPLOAD_MB: ${MAX_FILE_SIZE_MB:-25}
@@ -109,11 +97,12 @@ services:
         condition: service_healthy
     ports:
       - "3000:8080"
-    networks: [dataguard]
+    networks: [ dataguard ]
 
 volumes:
   pgdata: # dados do PostgreSQL: sobrevivem a "docker compose down"
-  storage: # CSVs enviados, compartilhado entre analysis-service e data-quality-service
+  storage:
+    # CSVs enviados, compartilhado entre analysis-service e data-quality-service
 
 networks:
   dataguard:

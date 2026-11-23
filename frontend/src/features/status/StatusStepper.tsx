@@ -40,7 +40,7 @@ export function StatusStepper({ status }: { status: JobStatus }) {
         {pulse && (
           <motion.span
             key={current}
-            className="absolute top-1/2 h-[3px] w-14 -translate-x-full -translate-y-1/2 rounded-full bg-linear-to-r from-transparent to-accent shadow-[0_0_10px_var(--color-accent)]"
+            className="absolute top-1/2 h-0.75 w-14 -translate-x-full -translate-y-1/2 rounded-full bg-linear-to-r from-transparent to-accent shadow-[0_0_10px_var(--color-accent)]"
             initial={{ left: `${progress}%`, opacity: 0 }}
             animate={{ left: [`${progress}%`, `${nextProgress}%`], opacity: [0, 1, 1, 0] }}
             transition={{ duration: 1.4, repeat: Infinity, repeatDelay: 0.5, ease: "linear", times: [0, 0.15, 0.85, 1] }}

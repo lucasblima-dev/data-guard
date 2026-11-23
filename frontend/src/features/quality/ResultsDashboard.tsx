@@ -25,7 +25,7 @@ export function ResultsDashboard({ details, hold = false, instantHero = false, o
       animate={hold ? "hidden" : "show"}
       className="grid gap-4 xl:grid-cols-12"
     >
-      <div className={`${report ? "xl:col-span-8" : "xl:col-span-12"} [&>*]:h-full`}>
+      <div className={`${report ? "xl:col-span-8" : "xl:col-span-12"} *:h-full`}>
         <HealthHero
           profile={profile}
           findings={findings}

@@ -1,0 +1,99 @@
+{
+  "exchanges": [
+    {
+      "name": "dataguard.exchange",
+      "type": "topic",
+      "durable": true
+    },
+    {
+      "name": "dataguard.dlx",
+      "type": "direct",
+      "durable": true
+    }
+  ],
+  "queues": [
+    {
+      "name": "dataguard.quality.requested",
+      "durable": true,
+      "arguments": {
+        "x-dead-letter-exchange": "dataguard.dlx",
+        "x-dead-letter-routing-key": "dataguard.quality.dlq"
+      }
+    },
+    {
+      "name": "dataguard.intelligence.requested",
+      "durable": true,
+      "arguments": {
+        "x-dead-letter-exchange": "dataguard.dlx",
+        "x-dead-letter-routing-key": "dataguard.intelligence.dlq"
+      }
+    },
+    {
+      "name": "dataguard.analysis.status",
+      "durable": true,
+      "arguments": {
+        "x-dead-letter-exchange": "dataguard.dlx",
+        "x-dead-letter-routing-key": "dataguard.analysis.dlq"
+      }
+    },
+    {
+      "name": "dataguard.quality.dlq",
+      "durable": true
+    },
+    {
+      "name": "dataguard.intelligence.dlq",
+      "durable": true
+    },
+    {
+      "name": "dataguard.analysis.dlq",
+      "durable": true
+    }
+  ],
+  "bindings": [
+    {
+      "source": "dataguard.exchange",
+      "destination": "dataguard.quality.requested",
+      "routing_key": "analysis.requested"
+    },
+    {
+      "source": "dataguard.exchange",
+      "destination": "dataguard.intelligence.requested",
+      "routing_key": "analysis.quality.completed"
+    },
+    {
+      "source": "dataguard.exchange",
+      "destination": "dataguard.analysis.status",
+      "routing_key": "analysis.quality.started"
+    },
+    {
+      "source": "dataguard.exchange",
+      "destination": "dataguard.analysis.status",
+      "routing_key": "analysis.quality.completed"
+    },
+    {
+      "source": "dataguard.exchange",
+      "destination": "dataguard.analysis.status",
+      "routing_key": "analysis.completed"
+    },
+    {
+      "source": "dataguard.exchange",
+      "destination": "dataguard.analysis.status",
+      "routing_key": "analysis.failed"
+    },
+    {
+      "source": "dataguard.dlx",
+      "destination": "dataguard.quality.dlq",
+      "routing_key": "dataguard.quality.dlq"
+    },
+    {
+      "source": "dataguard.dlx",
+      "destination": "dataguard.intelligence.dlq",
+      "routing_key": "dataguard.intelligence.dlq"
+    },
+    {
+      "source": "dataguard.dlx",
+      "destination": "dataguard.analysis.dlq",
+      "routing_key": "dataguard.analysis.dlq"
+    }
+  ]
+}

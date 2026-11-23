@@ -17,6 +17,24 @@ services:
       retries: 12
     networks: [ dataguard ]
 
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks: [ dataguard ]
+
   data-quality-service:
     build: ./services/data-quality-service
     image: dataguard/data-quality-service:local
@@ -24,11 +42,17 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
       ENVIRONMENT: docker
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dataguard}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-dataguard}
       STORAGE_DIR: /app/storage
+      MESSAGING_ENABLED: ${MESSAGING_ENABLED:-true}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-dataguard.exchange}
+      RABBITMQ_DLX: ${RABBITMQ_DLX:-dataguard.dlx}
     volumes:
       - storage:/app/storage
     ports:
@@ -42,10 +66,17 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
       ENVIRONMENT: docker
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dataguard}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-dataguard}
+      DATA_QUALITY_SERVICE_URL: http://data-quality-service:8001
+      MESSAGING_ENABLED: ${MESSAGING_ENABLED:-true}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-dataguard.exchange}
+      RABBITMQ_DLX: ${RABBITMQ_DLX:-dataguard.dlx}
       LLM_ENABLED: ${LLM_ENABLED:-false}
       LLM_PROVIDER: ${LLM_PROVIDER:-huggingface}
       HF_TOKEN: ${HF_TOKEN:-}
@@ -65,9 +96,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      data-quality-service:
-        condition: service_healthy
-      intelligence-service:
+      rabbitmq:
         condition: service_healthy
     environment:
       ENVIRONMENT: docker
@@ -75,6 +104,10 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dataguard}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-dataguard}
       DATA_QUALITY_SERVICE_URL: http://data-quality-service:8001
       INTELLIGENCE_SERVICE_URL: http://intelligence-service:8002
+      MESSAGING_ENABLED: ${MESSAGING_ENABLED:-true}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-dataguard.exchange}
+      RABBITMQ_DLX: ${RABBITMQ_DLX:-dataguard.dlx}
       STORAGE_DIR: /app/storage
       MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-25}
     volumes:
@@ -101,6 +134,7 @@ services:
 
 volumes:
   pgdata: # dados do PostgreSQL: sobrevivem a "docker compose down"
+  rabbitmq_data: # metadados, filas e mensagens persistentes do RabbitMQ
   storage:
     # CSVs enviados, compartilhado entre analysis-service e data-quality-service
 

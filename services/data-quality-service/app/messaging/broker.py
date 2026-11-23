@@ -34,11 +34,31 @@ class QualityMessagingBroker:
     def is_connected(self) -> bool:
         return self._connection is not None and not self._connection.is_closed
 
-    async def connect(self) -> None:
+    async def connect(self, max_attempts: int = 10, retry_delay: float = 2.0) -> None:
         if not settings.RABBITMQ_URL:
             raise RuntimeError("RABBITMQ_URL não configurada para conexão AMQP.")
 
-        self._connection = await aio_pika.connect_robust(settings.RABBITMQ_URL)
+        last_exc: Exception | None = None
+        for attempt in range(1, max_attempts + 1):
+            try:
+                self._connection = await aio_pika.connect_robust(settings.RABBITMQ_URL)
+                break
+            except Exception as exc:
+                last_exc = exc
+                if attempt == max_attempts:
+                    raise
+                logger.warning(
+                    "Tentativa %d/%d de conexão ao RabbitMQ falhou (%s). Tentando novamente em %.1fs...",
+                    attempt,
+                    max_attempts,
+                    exc,
+                    retry_delay,
+                )
+                await asyncio.sleep(retry_delay)
+
+        if self._connection is None:
+            raise RuntimeError(f"Falha ao conectar ao RabbitMQ: {last_exc}")
+
         self._channel = await self._connection.channel()
         await self._channel.set_qos(prefetch_count=settings.RABBITMQ_PREFETCH_COUNT)
 

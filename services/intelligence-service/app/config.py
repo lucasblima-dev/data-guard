@@ -16,6 +16,15 @@ class Settings(BaseSettings):
 
     DATA_QUALITY_SERVICE_URL: str = "http://localhost:8001"
     ANALYSIS_SERVICE_URL: str = "http://localhost:8000"
+    INTERNAL_TIMEOUT_SECONDS: float = 10.0
+
+    MESSAGING_ENABLED: bool = False
+    RABBITMQ_URL: str = ""
+    RABBITMQ_EXCHANGE: str = "dataguard.exchange"
+    RABBITMQ_DLX: str = "dataguard.dlx"
+    RABBITMQ_PREFETCH_COUNT: int = 1
+    RABBITMQ_MAX_RETRIES: int = 3
+    RABBITMQ_RETRY_DELAY_SECONDS: float = 2.0
 
     # Config da IA Híbrida
     LLM_ENABLED: bool = True

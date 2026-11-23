@@ -63,7 +63,7 @@ export function FailureCard({ job }: { job: AnalysisJob }) {
       initial={{ opacity: 0, y: 12, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={springSoft}
-      className="relative overflow-hidden rounded-card border border-danger/25 bg-danger/[0.06] p-6 backdrop-blur-xl"
+      className="relative overflow-hidden rounded-card border border-danger/25 bg-danger/6 p-6 backdrop-blur-xl"
     >
       <div
         aria-hidden

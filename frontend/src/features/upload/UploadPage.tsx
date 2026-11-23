@@ -112,7 +112,7 @@ export function UploadPage() {
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="flex items-start gap-4 rounded-card border border-danger/25 bg-danger/[0.06] p-5 backdrop-blur-xl"
+                className="flex items-start gap-4 rounded-card border border-danger/25 bg-danger/6 p-5 backdrop-blur-xl"
               >
                 <span className="grid size-9 shrink-0 place-items-center rounded-full bg-danger/12 text-danger ring-1 ring-inset ring-danger/20">
                   <TriangleAlert className="size-4" strokeWidth={1.75} />

@@ -53,7 +53,7 @@ export function FindingsPanel({ findings, report }: Props) {
               <motion.li
                 key={f.id}
                 variants={fadeUp}
-                className="rounded-xl border border-transparent p-3 transition-colors duration-150 hover:border-line hover:bg-fg/[0.03]"
+                className="rounded-xl border border-transparent p-3 transition-colors duration-150 hover:border-line hover:bg-fg/3"
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="data truncate text-xs text-fg">{f.code}</span>

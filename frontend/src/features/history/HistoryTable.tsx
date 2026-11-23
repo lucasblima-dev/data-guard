@@ -24,7 +24,7 @@ function actionLabel(job: AnalysisJob): string {
 
 function FileTile() {
   return (
-    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-fg/[0.05] text-fg-muted">
+    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-fg/5 text-fg-muted">
       <FileSpreadsheet className="size-4" strokeWidth={1.5} />
     </span>
   );
@@ -41,7 +41,7 @@ export function HistoryTable({ items }: { items: AnalysisJob[] }) {
               <Link
                 to={`/analyses/${job.id}`}
                 aria-label={`${actionLabel(job)}: ${job.original_filename}`}
-                className="focus-ring flex items-center gap-3 px-4 py-4 transition-colors duration-150 hover:bg-fg/[0.03]"
+                className="focus-ring flex items-center gap-3 px-4 py-4 transition-colors duration-150 hover:bg-fg/3"
               >
                 <FileTile />
                 <div className="min-w-0 flex-1 space-y-1.5">

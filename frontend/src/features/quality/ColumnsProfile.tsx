@@ -65,7 +65,7 @@ export function ColumnsProfile({ profile, findings }: Props) {
         <span className="text-right">Únicos</span>
       </div>
 
-      <ul className="max-h-[34rem] divide-y divide-line overflow-y-auto">
+      <ul className="max-h-136 divide-y divide-line overflow-y-auto">
         {rows.map(({ name, col, worst, count }, i) => {
           const bucket = nullBucket(col.null_percentage);
           const pct = Math.min(100, col.null_percentage);

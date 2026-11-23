@@ -9,11 +9,6 @@ export function isTerminal(status: JobStatus): boolean {
   return status === "concluida" || status === "falhou";
 }
 
-/**
- * Consulta o job a cada 3 s e para ao atingir `concluida` ou `falhou`.
- * Falhas transitorias de rede mantem o ultimo estado conhecido e continuam tentando;
- * 404/422 encerram o polling (analise inexistente ou id invalido).
- */
 export function useAnalysis(id: string) {
   const [job, setJob] = useState<AnalysisJob | null>(null);
   const [error, setError] = useState<ApiError | null>(null);

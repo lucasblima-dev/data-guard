@@ -30,11 +30,6 @@ function FileTile() {
   );
 }
 
-/**
- * Celular (< md): lista de linhas tocaveis, sem colunas escondidas.
- * md+: tabela; em larguras medias (com a barra lateral) a hora, o tamanho e o rotulo da acao
- * saem para a tabela caber sem cortar conteudo.
- */
 export function HistoryTable({ items }: { items: AnalysisJob[] }) {
   return (
     <>
@@ -91,12 +86,12 @@ export function HistoryTable({ items }: { items: AnalysisJob[] }) {
                 variants={row}
                 initial="hidden"
                 animate="show"
-                className="group border-t border-line transition-colors hover:bg-fg/[0.03]"
+                className="group border-t border-line transition-colors hover:bg-fg/3"
               >
                 <td className="px-5 py-5">
                   <div className="flex items-center gap-3">
                     <FileTile />
-                    <span className="data max-w-[10rem] truncate text-sm xl:max-w-[16rem]" title={job.original_filename}>
+                    <span className="data max-w-40 truncate text-sm xl:max-w-[16rem]" title={job.original_filename}>
                       {job.original_filename}
                     </span>
                   </div>

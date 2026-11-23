@@ -41,7 +41,6 @@ export function HistoryPage() {
   const [query, setQuery] = useState("");
   const { data, stats, loading, error, retry } = useAnalysesList(page, status);
 
-  // O backend nao expoe busca por nome: filtra apenas a pagina carregada.
   const items = useMemo(() => {
     const q = query.trim().toLowerCase();
     const all = data?.items ?? [];
@@ -73,7 +72,6 @@ export function HistoryPage() {
             />
           </label>
 
-          {/* Celular: seletor unico (7 botoes nao cabem de forma organizada) */}
           <label className="relative md:hidden">
             <span className="sr-only">Filtrar por status</span>
             <select
@@ -112,9 +110,8 @@ export function HistoryPage() {
                     setPage(1);
                   }}
                   aria-pressed={active}
-                  className={`focus-ring relative h-7 shrink-0 rounded-full px-3 text-xs font-medium transition-colors duration-150 ${
-                    active ? "text-accent-fg" : "text-fg-muted hover:text-fg"
-                  }`}
+                  className={`focus-ring relative h-7 shrink-0 rounded-full px-3 text-xs font-medium transition-colors duration-150 ${active ? "text-accent-fg" : "text-fg-muted hover:text-fg"
+                    }`}
                 >
                   {active && (
                     <motion.span

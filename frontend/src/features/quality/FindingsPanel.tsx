@@ -18,7 +18,6 @@ interface Props {
   report: QualityReport | null | undefined;
 }
 
-/** Achados com a interpretacao e a acao sugerida do relatorio junto de cada um. */
 export function FindingsPanel({ findings, report }: Props) {
   const sorted = [...findings].sort((a, b) => severityRank(a.severity) - severityRank(b.severity));
   const insights = insightsByCode(report);
@@ -45,7 +44,7 @@ export function FindingsPanel({ findings, report }: Props) {
           variants={stagger(0.04)}
           initial="hidden"
           animate="show"
-          className="-mx-2 mt-4 flex max-h-[34rem] flex-col gap-1 overflow-y-auto px-2"
+          className="-mx-2 mt-4 flex max-h-136 flex-col gap-1 overflow-y-auto px-2"
         >
           {sorted.map((f) => {
             const meta = severityMeta[f.severity] ?? { label: f.severity, tone: "neutral" as const };

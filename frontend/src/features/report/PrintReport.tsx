@@ -64,10 +64,6 @@ interface Props {
   details: FullAnalysisDetails;
 }
 
-/**
- * Documento impresso (somente visivel ao imprimir): capa, sumario executivo,
- * achados, perfil das colunas e fecho com acoes, limitacoes e metodologia.
- */
 export function PrintReport({ job, details }: Props) {
   const { profile, report } = details;
   if (!profile) return null;

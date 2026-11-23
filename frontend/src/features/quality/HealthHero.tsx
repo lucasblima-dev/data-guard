@@ -10,7 +10,6 @@ interface Props {
   findings: QualityFinding[];
   score: number | null;
   onPrint: () => void;
-  /** Mostra o total de registros sem contar (ja exibido pela animacao de conclusao). */
   instant?: boolean;
 }
 
@@ -24,7 +23,6 @@ export function HealthHero({ profile, findings, score, onPrint, instant = false 
       variants={fadeUp}
       className="relative overflow-hidden rounded-card bg-accent p-7 text-accent-fg shadow-[0_40px_90px_-40px_rgb(214_255_61/0.5)] sm:p-8"
     >
-      {/* Aneis concentricos decorativos */}
       <div aria-hidden className="pointer-events-none absolute -right-24 top-1/2 -translate-y-1/2">
         {[260, 360, 460].map((s) => (
           <span

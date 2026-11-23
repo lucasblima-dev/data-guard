@@ -32,7 +32,6 @@ interface Props {
   findings: QualityFinding[];
 }
 
-/** Perfil por coluna: tipo, taxa de nulos e valores unicos, com marca de achados. */
 export function ColumnsProfile({ profile, findings }: Props) {
   const entries = Object.entries(profile.columns_summary);
 

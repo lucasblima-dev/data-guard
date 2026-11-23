@@ -1,4 +1,3 @@
-/** Faixas de taxa de nulos usadas no mapa do dataset e no grafico. */
 export type NullBucket = "clean" | "low" | "mid" | "high";
 
 export function nullBucket(pct: number): NullBucket {
@@ -8,7 +7,6 @@ export function nullBucket(pct: number): NullBucket {
   return "high";
 }
 
-/** Classes de celula (mapa do dataset). */
 export const bucketCell: Record<NullBucket, string> = {
   clean: "bg-accent",
   low: "bg-accent/45",
@@ -16,7 +14,6 @@ export const bucketCell: Record<NullBucket, string> = {
   high: "bg-danger",
 };
 
-/** Cores CSS para o grafico (SVG). */
 export const bucketColor: Record<NullBucket, string> = {
   clean: "var(--color-accent)",
   low: "color-mix(in oklab, var(--color-accent) 55%, transparent)",

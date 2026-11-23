@@ -8,17 +8,11 @@ import { HealthHero } from "./HealthHero";
 
 interface Props {
   details: FullAnalysisDetails;
-  /** Mantem os blocos ocultos (durante a animacao de conclusao). */
   hold?: boolean;
-  /** O hero ja mostrou o total de registros: nao conta de novo. */
   instantHero?: boolean;
   onPrint: () => void;
 }
 
-/**
- * Resultado da analise em blocos, do geral ao especifico:
- * veredito (hero + resumo) -> achados com acoes -> perfil das colunas -> acoes e limitacoes.
- */
 export function ResultsDashboard({ details, hold = false, instantHero = false, onPrint }: Props) {
   const { profile, report } = details;
   if (!profile) return null;

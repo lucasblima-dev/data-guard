@@ -3,7 +3,6 @@ import { Card } from "../../components/ui/Card";
 import { formatDate, formatTime } from "../../lib/format";
 import type { QualityReport } from "../../types/analysis";
 
-/** Resumo executivo, ao lado do hero. */
 export function ExecutiveSummary({ report }: { report: QualityReport }) {
   const assisted = report.generation_mode === "llm_assisted";
   return (
@@ -27,7 +26,6 @@ export function ExecutiveSummary({ report }: { report: QualityReport }) {
   );
 }
 
-/** Acoes recomendadas e limitacoes: o fecho do diagnostico. */
 export function ReportFooterCards({ report }: { report: QualityReport }) {
   const actions = report.recommended_actions;
   const limits = report.limitations;

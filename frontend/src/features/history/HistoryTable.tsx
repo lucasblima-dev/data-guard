@@ -24,17 +24,12 @@ function actionLabel(job: AnalysisJob): string {
 
 function FileTile() {
   return (
-    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-fg/[0.05] text-fg-muted">
+    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-fg/5 text-fg-muted">
       <FileSpreadsheet className="size-4" strokeWidth={1.5} />
     </span>
   );
 }
 
-/**
- * Celular (< md): lista de linhas tocaveis, sem colunas escondidas.
- * md+: tabela; em larguras medias (com a barra lateral) a hora, o tamanho e o rotulo da acao
- * saem para a tabela caber sem cortar conteudo.
- */
 export function HistoryTable({ items }: { items: AnalysisJob[] }) {
   return (
     <>
@@ -46,7 +41,7 @@ export function HistoryTable({ items }: { items: AnalysisJob[] }) {
               <Link
                 to={`/analyses/${job.id}`}
                 aria-label={`${actionLabel(job)}: ${job.original_filename}`}
-                className="focus-ring flex items-center gap-3 px-4 py-4 transition-colors duration-150 hover:bg-fg/[0.03]"
+                className="focus-ring flex items-center gap-3 px-4 py-4 transition-colors duration-150 hover:bg-fg/3"
               >
                 <FileTile />
                 <div className="min-w-0 flex-1 space-y-1.5">
@@ -91,12 +86,12 @@ export function HistoryTable({ items }: { items: AnalysisJob[] }) {
                 variants={row}
                 initial="hidden"
                 animate="show"
-                className="group border-t border-line transition-colors hover:bg-fg/[0.03]"
+                className="group border-t border-line transition-colors hover:bg-fg/3"
               >
                 <td className="px-5 py-5">
                   <div className="flex items-center gap-3">
                     <FileTile />
-                    <span className="data max-w-[10rem] truncate text-sm xl:max-w-[16rem]" title={job.original_filename}>
+                    <span className="data max-w-40 truncate text-sm xl:max-w-[16rem]" title={job.original_filename}>
                       {job.original_filename}
                     </span>
                   </div>

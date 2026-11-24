@@ -5,7 +5,6 @@ export type Theme = "dark" | "light";
 const STORAGE_KEY = "dg-theme";
 const THEME_COLOR: Record<Theme, string> = { dark: "#0a0a0b", light: "#f4f4f0" };
 
-/** O tema inicial e aplicado por um script em index.html, antes da primeira pintura. */
 function readCurrent(): Theme {
   return document.documentElement.dataset.theme === "light" ? "light" : "dark";
 }

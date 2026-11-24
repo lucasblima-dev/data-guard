@@ -12,7 +12,7 @@ import { Dropzone } from "./Dropzone";
 import { validateCsv } from "./validateCsv";
 
 const pipeline = [
-  { label: "Envio", hint: "Recebimento do arquivo" },
+  { label: "Envio", hint: "Enfileiramento assíncrono" },
   { label: "Validação", hint: "Schema e encoding" },
   { label: "Análise", hint: "Perfilamento determinístico" },
   { label: "Relatório", hint: "Síntese dos achados" },
@@ -25,12 +25,10 @@ export function UploadPage() {
   const [submitting, setSubmitting] = useState(false);
   const [slow, setSlow] = useState(false);
 
-  // Acorda o servico (plano gratuito) enquanto o usuario escolhe o arquivo.
   useEffect(() => {
     wakeBackend();
   }, []);
 
-  // Se o envio demora, explica o motivo em vez de parecer travado.
   useEffect(() => {
     if (!submitting) {
       setSlow(false);
@@ -40,7 +38,6 @@ export function UploadPage() {
     return () => window.clearTimeout(t);
   }, [submitting]);
 
-  // Soltar fora da area nao deve fazer o navegador abrir o arquivo.
   useEffect(() => {
     const prevent = (e: DragEvent) => e.preventDefault();
     window.addEventListener("dragover", prevent);
@@ -58,9 +55,6 @@ export function UploadPage() {
       setFile(null);
       return;
     }
-    // Copia o conteudo para a memoria ja na selecao. No celular, arquivos vindos de nuvem
-    // (Drive, iCloud) ou "Downloads" podem mudar ou sumir antes do envio e o navegador
-    // aborta o upload com um erro de rede generico (ERR_UPLOAD_FILE_CHANGED).
     try {
       const content = await picked.arrayBuffer();
       setFile(new File([content], picked.name, { type: "text/csv", lastModified: picked.lastModified }));
@@ -118,7 +112,7 @@ export function UploadPage() {
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="flex items-start gap-4 rounded-card border border-danger/25 bg-danger/[0.06] p-5 backdrop-blur-xl"
+                className="flex items-start gap-4 rounded-card border border-danger/25 bg-danger/6 p-5 backdrop-blur-xl"
               >
                 <span className="grid size-9 shrink-0 place-items-center rounded-full bg-danger/12 text-danger ring-1 ring-inset ring-danger/20">
                   <TriangleAlert className="size-4" strokeWidth={1.75} />

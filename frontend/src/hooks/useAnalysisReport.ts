@@ -9,7 +9,6 @@ interface State {
   error: ApiError | null;
 }
 
-/** Carrega o relatorio completo uma unica vez, quando a analise esta concluida. */
 export function useAnalysisReport(id: string, enabled: boolean) {
   const [state, setState] = useState<State>({ details: null, loading: false, error: null });
   const [attempt, setAttempt] = useState(0);

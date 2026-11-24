@@ -4,7 +4,7 @@ import { easeOutExpo, springSoft } from "../../lib/motion";
 import type { JobStatus } from "../../types/analysis";
 
 const STEPS: { status: JobStatus; label: string; hint: string }[] = [
-  { status: "enviada", label: "Enviada", hint: "Recebimento concluído" },
+  { status: "enviada", label: "Enviada", hint: "Na fila de processamento" },
   { status: "validando", label: "Validando", hint: "Schema e encoding" },
   { status: "analisando", label: "Analisando", hint: "Cálculo determinístico" },
   { status: "gerando_relatorio", label: "Relatório", hint: "Composição dos insights" },
@@ -30,7 +30,6 @@ export function StatusStepper({ status }: { status: JobStatus }) {
 
   return (
     <ol aria-label="Progresso da análise" className="relative grid gap-5 sm:grid-cols-5 sm:gap-0">
-      {/* Trilha (desktop): fundo + preenchimento animado */}
       <div aria-hidden className="absolute left-[10%] right-[10%] top-3.5 hidden h-px bg-line-strong sm:block">
         <motion.div
           className="h-px origin-left bg-accent"
@@ -38,11 +37,10 @@ export function StatusStepper({ status }: { status: JobStatus }) {
           animate={{ width: `${progress}%` }}
           transition={{ duration: 0.8, ease: easeOutExpo }}
         />
-        {/* Pulso de luz correndo ate a proxima etapa, enquanto a atual esta ativa */}
         {pulse && (
           <motion.span
             key={current}
-            className="absolute top-1/2 h-[3px] w-14 -translate-x-full -translate-y-1/2 rounded-full bg-gradient-to-r from-transparent to-accent shadow-[0_0_10px_var(--color-accent)]"
+            className="absolute top-1/2 h-0.75 w-14 -translate-x-full -translate-y-1/2 rounded-full bg-linear-to-r from-transparent to-accent shadow-[0_0_10px_var(--color-accent)]"
             initial={{ left: `${progress}%`, opacity: 0 }}
             animate={{ left: [`${progress}%`, `${nextProgress}%`], opacity: [0, 1, 1, 0] }}
             transition={{ duration: 1.4, repeat: Infinity, repeatDelay: 0.5, ease: "linear", times: [0, 0.15, 0.85, 1] }}
@@ -73,9 +71,8 @@ export function StatusStepper({ status }: { status: JobStatus }) {
                     state === "pending" ? "rgb(128 128 128 / 0.12)" : "var(--color-accent)",
                 }}
                 transition={springSoft}
-                className={`relative grid size-7 place-items-center rounded-full ring-1 ring-inset ${
-                  state === "pending" ? "ring-line-strong" : "ring-transparent"
-                }`}
+                className={`relative grid size-7 place-items-center rounded-full ring-1 ring-inset ${state === "pending" ? "ring-line-strong" : "ring-transparent"
+                  }`}
               >
                 {state === "done" ? (
                   <motion.span

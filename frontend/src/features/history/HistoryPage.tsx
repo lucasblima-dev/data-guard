@@ -41,7 +41,6 @@ export function HistoryPage() {
   const [query, setQuery] = useState("");
   const { data, stats, loading, error, retry } = useAnalysesList(page, status);
 
-  // O backend nao expoe busca por nome: filtra apenas a pagina carregada.
   const items = useMemo(() => {
     const q = query.trim().toLowerCase();
     const all = data?.items ?? [];
@@ -62,7 +61,7 @@ export function HistoryPage() {
 
       <Card className="overflow-hidden">
         <div className="flex flex-col gap-3 p-4 xl:flex-row xl:items-center xl:justify-between">
-          <label className="flex h-9 items-center gap-2 rounded-full border border-line bg-fg/[0.03] px-3.5 focus-within:border-line-strong xl:w-72">
+          <label className="flex h-9 items-center gap-2 rounded-full border border-line bg-fg/3 px-3.5 focus-within:border-line-strong xl:w-72">
             <Search className="size-3.5 text-fg-subtle" strokeWidth={1.75} />
             <input
               value={query}
@@ -73,7 +72,6 @@ export function HistoryPage() {
             />
           </label>
 
-          {/* Celular: seletor unico (7 botoes nao cabem de forma organizada) */}
           <label className="relative md:hidden">
             <span className="sr-only">Filtrar por status</span>
             <select
@@ -82,7 +80,7 @@ export function HistoryPage() {
                 setStatus((e.target.value || undefined) as JobStatus | undefined);
                 setPage(1);
               }}
-              className="focus-ring h-10 w-full appearance-none rounded-full border border-line bg-fg/[0.03] pl-4 pr-10 text-sm text-fg outline-none"
+              className="focus-ring h-10 w-full appearance-none rounded-full border border-line bg-fg/3 pl-4 pr-10 text-sm text-fg outline-none"
             >
               {filters.map((f) => (
                 <option key={f.label} value={f.value ?? ""} className="bg-surface-solid text-fg">
@@ -99,7 +97,7 @@ export function HistoryPage() {
           <div
             role="group"
             aria-label="Filtrar por status"
-            className="hidden max-w-full flex-wrap gap-0.5 rounded-2xl border border-line bg-fg/[0.03] p-1 md:flex"
+            className="hidden max-w-full flex-wrap gap-0.5 rounded-2xl border border-line bg-fg/3 p-1 md:flex"
           >
             {filters.map((f) => {
               const active = f.value === status;
@@ -112,9 +110,8 @@ export function HistoryPage() {
                     setPage(1);
                   }}
                   aria-pressed={active}
-                  className={`focus-ring relative h-7 shrink-0 rounded-full px-3 text-xs font-medium transition-colors duration-150 ${
-                    active ? "text-accent-fg" : "text-fg-muted hover:text-fg"
-                  }`}
+                  className={`focus-ring relative h-7 shrink-0 rounded-full px-3 text-xs font-medium transition-colors duration-150 ${active ? "text-accent-fg" : "text-fg-muted hover:text-fg"
+                    }`}
                 >
                   {active && (
                     <motion.span

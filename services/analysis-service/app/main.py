@@ -1,5 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
+from functools import partial
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
@@ -8,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1 import v1_router
 from app.config import settings
 from app.database import init_db
+from app.messaging import analysis_broker, handle_status_event
 
 logging.basicConfig(level=settings.LOG_LEVEL)
 logger = logging.getLogger(__name__)
@@ -25,7 +27,25 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             "A aplicação continuará rodando para healthchecks e reconectará sob demanda.",
             exc,
         )
+
+    if settings.MESSAGING_ENABLED:
+        analysis_broker.set_consumer_callback(
+            partial(handle_status_event, broker=analysis_broker)
+        )
+        try:
+            await analysis_broker.connect()
+            await analysis_broker.start_consuming()
+        except Exception as exc:
+            logger.warning(
+                "Não foi possível inicializar o RabbitMQ no startup: %s. "
+                "O serviço tentará reconectar sob demanda ao receber novos uploads.",
+                exc,
+            )
+
     yield
+
+    if settings.MESSAGING_ENABLED:
+        await analysis_broker.close()
     logger.info("Encerrando DataGuard Analysis Service...")
 
 
@@ -47,9 +67,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# registra as rotas da v1 com prefixo /api
 app.include_router(v1_router, prefix="/api")
-
 
 @app.get(
     "/health",
@@ -58,12 +76,13 @@ app.include_router(v1_router, prefix="/api")
     response_model=dict[str, str],
 )
 async def health_check() -> dict[str, str]:
-    """Verify application health and availability."""
     return {
         "status": "healthy",
         "service": "analysis-service",
         "version": settings.APP_VERSION,
         "environment": settings.ENVIRONMENT,
+        "messaging_enabled": str(settings.MESSAGING_ENABLED),
+        "messaging_connected": str(analysis_broker.is_connected),
     }
 
 
@@ -74,7 +93,6 @@ async def health_check() -> dict[str, str]:
     response_model=dict[str, str],
 )
 async def root() -> dict[str, str]:
-    """Root info endpoint providing documentation links."""
     return {
         "service": settings.APP_NAME,
         "version": settings.APP_VERSION,

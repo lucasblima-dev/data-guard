@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import async_session_factory
+from app.messaging import analysis_broker
 from app.models.job import AnalysisJobModel
 from app.schemas.job import JobResponse, JobStatus
 from app.schemas.report import (
@@ -27,10 +28,6 @@ logger = logging.getLogger(__name__)
 class OrchestratorService:
     @staticmethod
     def calculate_health_score(findings: list[dict]) -> int:
-        """
-        Calcula nota de integridade e saude do dataset (0-100)
-        com base na quantidade e severidade dos achados determinísticos.
-        """
         score = 100
         for f in findings:
             sev = f.get("severity")
@@ -49,10 +46,6 @@ class OrchestratorService:
         file: UploadFile,
         background_tasks: BackgroundTasks,
     ) -> AnalysisJobModel:
-        """
-        Recebe o arquivo CSV do upload, valida regras essenciais,
-        salva no storage, insere o job imediatamente e agenda o pipeline assíncrono.
-        """
         if not file.filename or not file.filename.lower().endswith(".csv"):
             raise HTTPException(
                 status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
@@ -114,12 +107,39 @@ class OrchestratorService:
         await db.commit()
         await db.refresh(job)
 
-        background_tasks.add_task(
-            cls.run_pipeline_task,
-            job_id,
-            file_ref_str,
-            clean_filename,
-        )
+        if settings.MESSAGING_ENABLED:
+            try:
+                await analysis_broker.publish_analysis_requested(
+                    analysis_id=job.id,
+                    file_ref=file_ref_str,
+                    filename=clean_filename,
+                )
+            except Exception as exc:
+                logger.error(
+                    "Erro ao publicar analysis.requested para job %s no RabbitMQ: %s",
+                    job.id,
+                    exc,
+                )
+                job.status = JobStatus.FALHOU.value
+                job.error_code = "MESSAGING_BROKER_UNAVAILABLE"
+                job.error_message = (
+                    "O serviço de mensageria está temporariamente indisponível para enfileirar a análise."
+                )
+                await db.commit()
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail={
+                        "code": "MESSAGING_BROKER_UNAVAILABLE",
+                        "message": "O serviço de mensageria está temporariamente indisponível. Tente novamente em instantes.",
+                    },
+                )
+        else:
+            background_tasks.add_task(
+                cls.run_pipeline_task,
+                job_id,
+                file_ref_str,
+                clean_filename,
+            )
 
         return job
 
@@ -130,10 +150,6 @@ class OrchestratorService:
         file_ref: str,
         filename: str,
     ) -> None:
-        """
-        Executa o pipeline síncrono dos microsserviços em background,
-        atualizando os status no banco do Supabase progressivamente.
-        """
         logger.info("Iniciando pipeline síncrono para análise %s...", job_id)
         dq_url = f"{settings.DATA_QUALITY_SERVICE_URL.rstrip('/')}/internal"
         is_url = f"{settings.INTELLIGENCE_SERVICE_URL.rstrip('/')}/internal"
@@ -144,7 +160,6 @@ class OrchestratorService:
                 logger.error("Job %s não encontrado para processamento.", job_id)
                 return
 
-            # Etapa 1: Validando -> Analisando
             job.status = JobStatus.ANALISANDO.value
             await db.commit()
 
@@ -225,7 +240,6 @@ class OrchestratorService:
                     await db.commit()
                     return
 
-            # Etapa 3: Concluído com Sucesso
             job.status = JobStatus.CONCLUIDA.value
             job.completed_at = datetime.now(timezone.utc)
             await db.commit()
@@ -237,11 +251,6 @@ class OrchestratorService:
         db: AsyncSession,
         job_id: UUID,
     ) -> FullAnalysisDetailsResponse | None:
-        """
-        Agrega o job, o perfil tabular, os achados de conformidade,
-        o laudo de síntese e calcula o health_score unificado.
-        Utiliza chamadas HTTP internas e fallback direto no Supabase.
-        """
         job = await JobService.get_job_by_id(db, job_id)
         if not job:
             return None
@@ -253,7 +262,6 @@ class OrchestratorService:
         findings_objs = []
         report_obj = None
 
-        # Search via HTTP interno
         async with httpx.AsyncClient(timeout=settings.INTERNAL_TIMEOUT_SECONDS) as client:
             try:
                 resp = await client.get(f"{dq_url}/quality/{job_id}")
@@ -277,7 +285,6 @@ class OrchestratorService:
             except Exception as exc:
                 logger.warning("Falha HTTP ao consultar relatório de %s: %s", job_id, exc)
 
-        # Fallback direto no Supabase se falhar via HTTP
         if not profile_obj or not report_obj:
             try:
                 from sqlalchemy import text

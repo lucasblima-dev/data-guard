@@ -1,6 +1,5 @@
 import type { KeyInsight, QualityReport } from "../types/analysis";
 
-/** Agrupa os insights do relatorio pelo codigo do achado ao qual se referem. */
 export function insightsByCode(report: QualityReport | null | undefined): Map<string, KeyInsight[]> {
   const map = new Map<string, KeyInsight[]>();
   for (const insight of report?.key_insights ?? []) {

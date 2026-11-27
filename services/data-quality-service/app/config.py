@@ -18,6 +18,14 @@ class Settings(BaseSettings):
     ANALYSIS_SERVICE_URL: str = "http://localhost:8000"
     STORAGE_DIR: str = str(Path(__file__).resolve().parent.parent.parent.parent / "storage")
 
+    MESSAGING_ENABLED: bool = False
+    RABBITMQ_URL: str = ""
+    RABBITMQ_EXCHANGE: str = "dataguard.exchange"
+    RABBITMQ_DLX: str = "dataguard.dlx"
+    RABBITMQ_PREFETCH_COUNT: int = 1
+    RABBITMQ_MAX_RETRIES: int = 3
+    RABBITMQ_RETRY_DELAY_SECONDS: float = 2.0
+
     CORS_ORIGINS: list[str] = ["*"]
 
     @field_validator("DATABASE_URL", mode="after")

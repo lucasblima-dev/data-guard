@@ -25,6 +25,14 @@ class ReportService:
         findings: list[dict[str, Any]],
     ) -> AnalysisReportModel:
         """Gera síntese técnica via IA (ou fallback) e persiste o laudo no banco."""
+        existing_report = await self.get_report_by_analysis_id(db, analysis_id)
+        if existing_report is not None:
+            logger.info(
+                "Relatório já existente para analysis_id=%s; retornando resultado idempotente.",
+                analysis_id,
+            )
+            return existing_report
+
         llm_response, generation_mode = await self.dispatcher.synthesize(
             row_count=row_count,
             column_count=column_count,
@@ -32,7 +40,6 @@ class ReportService:
             findings=findings,
         )
 
-        # Converte os insights tipados para dicionários compatíveis com JSONB
         serialized_insights = [insight.model_dump() for insight in llm_response.key_insights]
 
         report = AnalysisReportModel(
@@ -59,7 +66,6 @@ class ReportService:
         db: AsyncSession,
         analysis_id: UUID,
     ) -> AnalysisReportModel | None:
-        """Recupera o relatório gerado a partir do ID da análise."""
         stmt = (
             select(AnalysisReportModel)
             .where(AnalysisReportModel.analysis_id == analysis_id)

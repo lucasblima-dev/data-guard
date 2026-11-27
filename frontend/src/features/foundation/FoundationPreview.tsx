@@ -7,11 +7,10 @@ import { Card } from "../../components/ui/Card";
 import { CountUp } from "../../components/ui/CountUp";
 import { fadeUp, stagger, tweenEnter, tweenExit } from "../../lib/motion";
 
-/** Pagina de desenvolvimento (somente em `npm run dev`) para validar a fundacao visual. */
 const swatches = [
   { name: "accent (lima)", cls: "bg-accent" },
   { name: "signal-cyan", cls: "bg-signal-cyan" },
-  
+
   { name: "ok", cls: "bg-ok" },
   { name: "warn", cls: "bg-warn" },
   { name: "danger", cls: "bg-danger" },

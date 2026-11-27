@@ -13,7 +13,6 @@ interface State {
   error: ApiError | null;
 }
 
-/** Lista paginada com filtro; refaz a consulta a cada 3 s enquanto houver job em andamento. */
 export function useAnalysesList(page: number, status: JobStatus | undefined, pageSize = 10) {
   const [state, setState] = useState<State>({ data: null, stats: null, loading: true, error: null });
   const [tick, setTick] = useState(0);
@@ -30,12 +29,14 @@ export function useAnalysesList(page: number, status: JobStatus | undefined, pag
     return () => ctrl.abort();
   }, [page, status, pageSize, tick]);
 
-  const hasActive = state.data?.items.some((j) => jobStatusMeta[j.status].active) ?? false;
+  const hasActive =
+    (state.stats?.inProgress ?? 0) > 0 ||
+    (state.data?.items.some((j) => jobStatusMeta[j.status].active) ?? false);
   useEffect(() => {
     if (!hasActive) return;
     const id = window.setTimeout(() => setTick((t) => t + 1), POLL_MS);
     return () => window.clearTimeout(id);
-  }, [hasActive, state.data]);
+  }, [hasActive, state.data, state.stats]);
 
   const retry = useCallback(() => {
     setState((prev) => ({ ...prev, loading: true, error: null }));

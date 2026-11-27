@@ -22,6 +22,15 @@ class Settings(BaseSettings):
     STORAGE_DIR: str = str(Path(__file__).resolve().parent.parent.parent.parent / "storage")
     MAX_FILE_SIZE_MB: int = 25
     INTERNAL_TIMEOUT_SECONDS: float = 10.0
+    SYNTHESIZE_TIMEOUT_SECONDS: float = 30.0
+
+    MESSAGING_ENABLED: bool = False
+    RABBITMQ_URL: str = ""
+    RABBITMQ_EXCHANGE: str = "dataguard.exchange"
+    RABBITMQ_DLX: str = "dataguard.dlx"
+    RABBITMQ_PREFETCH_COUNT: int = 1
+    RABBITMQ_MAX_RETRIES: int = 3
+    RABBITMQ_RETRY_DELAY_SECONDS: float = 2.0
 
     CORS_ORIGINS: list[str] = ["*"]
 

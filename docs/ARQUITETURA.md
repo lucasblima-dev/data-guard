@@ -19,13 +19,13 @@ O design do sistema apoia-se em quatro premissas fundamentais:
 
 ---
 
-## 2. Topologia do Sistema: Estado Atual (Módulo 2) vs Evolução Planejada (Módulos 3 e 4)
+## 2. Topologia do Sistema: Evolução por Módulos (Nuvem vs. Containers + Mensageria)
 
-Para atender à evolução pedagógica e operacional da disciplina, o repositório mantém distinção clara entre a **implementação em produção atual** e o **plano de evolução arquitetural**.
+Para atender à evolução pedagógica e operacional da disciplina, o repositório preserva compatibilidade entre o **deploy em nuvem sem broker (Módulo 2 — `MESSAGING_ENABLED=false`)** e a **arquitetura distribuída completa conteinerizada orientada a eventos (Módulos 3 e 4 — `MESSAGING_ENABLED=true`)**.
 
-### 2.1 Topologia Atual Implementada (Módulo 2)
+### 2.1 Topologia em Nuvem sem Broker (Módulo 2 — Modo Fallback HTTP)
 
-Na fase atual, o sistema está completamente dividido em **quatro componentes autônomos**, hospedados no Render com persistência relacional remota no Supabase (PostgreSQL 16) e comunicação interna síncrona via HTTP:
+No deploy gratuito em nuvem (Render + Supabase), onde `MESSAGING_ENABLED=false`, o sistema executa quatro componentes autônomos com comunicação interna síncrona via HTTP:
 
 ```mermaid
 flowchart LR
@@ -50,7 +50,7 @@ flowchart LR
     U -->|"HTTPS"| FE
     FE -->|"REST /api<br/>única porta de entrada"| AS
     AS -->|"HTTP POST /internal/process<br/>timeout 10 s"| DQ
-    AS -->|"HTTP POST /internal/synthesize<br/>timeout 10 s"| IS
+    AS -->|"HTTP POST /internal/synthesize<br/>timeout 30 s"| IS
     AS -.->|"HTTP GET /internal/quality<br/>/internal/reports"| DQ
     AS -.-> IS
 
@@ -62,22 +62,61 @@ flowchart LR
     IS -.->|"LLM_PROVIDER=ollama<br/>timeout 25 s"| OL
 ```
 
-### 2.2 Topologia Planejada com Mensageria e Contêineres (Módulos 3 e 4)
+### 2.2 Topologia Local Conteinerizada Orientada a Eventos (Módulos 3 e 4 — Implementada)
 
-A arquitetura foi projetada para receber desacoplamento assíncrono via **RabbitMQ** e conteinerização integral via **Docker Compose** sem necessidade de reescrever as regras de negócio:
+No ambiente local (`docker-compose.yml`), o DataGuard sobe **seis containers** na rede interna `dataguard` (`postgres`, `rabbitmq`, `analysis-service`, `data-quality-service`, `intelligence-service` e `frontend`) com três volumes nomeados (`pgdata`, `rabbitmq_data` e `storage`) e `MESSAGING_ENABLED=true`:
 
 ```mermaid
 flowchart LR
-    FE["Frontend<br/>Nginx"] --> AS["analysis-service"]
-    AS -->|"publica analysis.requested<br/>(só IDs e file_ref)"| MQ{{"RabbitMQ<br/>dataguard.exchange"}}
-    MQ -->|"consome"| DQ["data-quality-service"]
-    DQ -->|"publica evento de conclusão"| MQ
-    MQ -->|"consome"| IS["intelligence-service"]
-    MQ -.->|"falha permanente"| DLQ[("Dead Letter Queue")]
-    AS --> PG[("PostgreSQL")]
+    U(["Navegador"])
+
+    subgraph COMPOSE["Docker Compose - rede dataguard"]
+        FE["frontend\nNginx :8080\nhost :3000"]
+        AS["analysis-service\n:8000"]
+        DQ["data-quality-service\n:8001"]
+        IS["intelligence-service\n:8002"]
+        MQ{{"rabbitmq:3.13-management\nAMQP :5672 | UI :15672\ndataguard.exchange"}}
+        DLQ[("dataguard.dlx\n*.dlq")]
+        PG[("postgres :5432")]
+        V1[/"volume pgdata"/]
+        V2[/"volume storage"/]
+        V3[/"volume rabbitmq_data"/]
+    end
+
+    U -->|"http://localhost:3000"| FE
+    U -->|"REST http://localhost:8000/api"| AS
+    AS -->|"publica analysis.requested\n(somente IDs e file_ref)"| MQ
+    MQ -->|"consome dataguard.quality.requested"| DQ
+    DQ -->|"publica started / quality.completed"| MQ
+    MQ -->|"consome dataguard.intelligence.requested"| IS
+    IS -->|"GET /internal/quality/{id}"| DQ
+    IS -->|"publica analysis.completed"| MQ
+    MQ -->|"consome dataguard.analysis.status"| AS
+    MQ -.->|"nack(requeue=False)"| DLQ
+    AS --> PG
     DQ --> PG
     IS --> PG
+    PG --- V1
+    AS ---|"escrita CSV"| V2
+    DQ ---|"leitura CSV"| V2
+    MQ --- V3
 ```
+
+O volume `storage` permite o compartilhamento seguro do CSV entre `analysis-service` e `data-quality-service` sem trafegar o conteúdo bruto do arquivo nas filas AMQP. Cada imagem usa build multi-stage (virtualenv enxuto em `python:3.11-slim`), usuário não-root e `HEALTHCHECK`; o `rabbitmq` utiliza `rabbitmq-diagnostics -q check_port_connectivity` e os três serviços aplicam retry de conexão inicial com `aio-pika` (`connect_robust`).
+
+#### Topologia AMQP Implementada (`infra/rabbitmq/topology.json`)
+
+| Evento (`routing_key`) | Publicador | Fila(s) Durável(is) | Consumidor(es) | DLQ Associada |
+| :--- | :--- | :--- | :--- | :--- |
+| `analysis.requested` | `analysis-service` | `dataguard.quality.requested` | `data-quality-service` | `dataguard.quality.dlq` |
+| `analysis.quality.started` | `data-quality-service` | `dataguard.analysis.status` | `analysis-service` | `dataguard.analysis.dlq` |
+| `analysis.quality.completed` | `data-quality-service` | `dataguard.intelligence.requested` e `dataguard.analysis.status` | `intelligence-service` e `analysis-service` | `dataguard.intelligence.dlq` / `dataguard.analysis.dlq` |
+| `analysis.completed` | `intelligence-service` | `dataguard.analysis.status` | `analysis-service` | `dataguard.analysis.dlq` |
+| `analysis.failed` | `data-quality-service` ou `intelligence-service` | `dataguard.analysis.status` | `analysis-service` | `dataguard.analysis.dlq` |
+
+- **Confirmação manual (`no_ack=False`):** `ack()` é emitido somente após o commit no PostgreSQL e publicação do evento subsequente.
+- **Retry controlado e DLQ:** falhas transitórias são republicadas com cabeçalho `x-retry-count` até 3 tentativas (`prefetch_count=1`); falhas permanentes ou retries esgotados emitem `analysis.failed` e chamam `nack(requeue=False)`, isolando a mensagem em `dataguard.dlx`.
+- **Idempotência:** os três serviços verificam persistência prévia ou estado terminal/monotônico antes de reprocessar uma mensagem reentregue.
 
 ---
 
@@ -105,7 +144,7 @@ flowchart LR
 
 ### 3.3 Intelligence Service (Motor de Síntese Técnica e Laudo)
 
-- **Porta interna:** Expõe endpoints `/internal/synthesize` e `/internal/reports/{id}`.
+- **Porta interna:** Expõe endpoints `/internal/synthesize`, `/internal/reports/{id}` e `/internal/llm/probe` (diagnóstico de conectividade com o provedor ativo).
 - **Entrada estrita:** Recebe exclusivamente o sumário de colunas e a lista de `QualityFinding`.
 - **Estratégia híbrida:** Aciona o provedor configurado (Hugging Face Serverless API, Ollama na rede local ou motor de regras local).
 - **Saída padronizada:** Gera sumário executivo, interpretação contextual de cada achado, recomendações técnicas de saneamento e limitações observadas.
@@ -115,7 +154,7 @@ flowchart LR
 
 ## 4. Ciclo de Vida e Passo a Passo de uma Análise
 
-O diagrama de sequência a seguir ilustra a jornada completa de uma requisição de análise, desde o upload inicial pelo navegador até a renderização do painel consolidado:
+O diagrama de sequência a seguir ilustra a jornada completa de uma requisição de análise no modo orientado a eventos (**Módulo 4 — `MESSAGING_ENABLED=true`**), desde o upload pelo navegador até a renderização do painel consolidado:
 
 ```mermaid
 sequenceDiagram
@@ -123,40 +162,47 @@ sequenceDiagram
     actor U as Usuário
     participant FE as Frontend
     participant AS as analysis-service
-    participant ST as Storage local
-    participant DB as PostgreSQL (Supabase)
+    participant ST as Volume storage
+    participant DB as PostgreSQL
+    participant MQ as RabbitMQ (dataguard.exchange)
     participant DQ as data-quality-service
     participant IS as intelligence-service
 
     U->>FE: Seleciona CSV e envia
     FE->>AS: POST /api/analyses (multipart)
     AS->>AS: Valida extensão .csv e limite de 25 MB
-    AS->>ST: Grava arquivo em blocos de 1 MB
+    AS->>ST: Grava CSV em blocos de 1 MB
     AS->>DB: INSERT analysis_jobs (status = enviada)
+    AS->>MQ: Publica analysis.requested (analysis_id, file_ref, filename)
     AS-->>FE: 201 Created com analysis_id (resposta imediata)
-    Note over AS: BackgroundTasks agenda o pipeline<br/>depois de responder
 
-    par Interface consulta o andamento
+    par Interface acompanha via polling
         loop A cada 3 s até concluida ou falhou
             FE->>AS: GET /api/analyses/{id}
             AS->>DB: SELECT status
             AS-->>FE: status atual
         end
-    and Pipeline em segundo plano
-        AS->>DB: status = analisando
-        AS->>DQ: POST /internal/process (analysis_id, file_ref, filename)
-        DQ->>ST: Lê o CSV com Pandas
-        DQ->>DQ: Perfila colunas e gera achados
+    and Esteira assíncrona via RabbitMQ
+        MQ->>DQ: Entrega analysis.requested (dataguard.quality.requested)
+        DQ->>MQ: Publica analysis.quality.started
+        MQ->>AS: Entrega analysis.quality.started
+        AS->>DB: UPDATE status = analisando (+ ACK)
+        DQ->>ST: Lê CSV por file_ref com Pandas
         DQ->>DB: INSERT dataset_profiles e quality_findings
-        DQ-->>AS: 200 OK
-        AS->>DQ: GET /internal/quality/{id}
-        DQ-->>AS: perfil + achados (JSON)
-        AS->>DB: status = gerando_relatorio
-        AS->>IS: POST /internal/synthesize (somente métricas e achados)
-        IS->>IS: Escolhe provedor (IA ou regras)
-        IS->>DB: INSERT analysis_reports
-        IS-->>AS: 200 OK (generation_mode)
-        AS->>DB: status = concluida, completed_at
+        DQ->>MQ: Publica analysis.quality.completed (+ ACK)
+        par Fan-out via topic exchange
+            MQ->>AS: Entrega analysis.quality.completed
+            AS->>DB: UPDATE status = gerando_relatorio (+ ACK)
+        and
+            MQ->>IS: Entrega analysis.quality.completed (dataguard.intelligence.requested)
+            IS->>DQ: GET /internal/quality/{id} (somente métricas e achados)
+            DQ-->>IS: perfil + achados (JSON)
+            IS->>IS: Sintetiza laudo (HF / Ollama / fallback rules_only)
+            IS->>DB: INSERT analysis_reports
+            IS->>MQ: Publica analysis.completed (+ ACK)
+        end
+        MQ->>AS: Entrega analysis.completed
+        AS->>DB: UPDATE status = concluida, completed_at (+ ACK)
     end
 
     FE->>AS: GET /api/analyses/{id}/report
@@ -206,7 +252,7 @@ flowchart TD
     B -->|"Sim"| C{"GET data-quality /quality/id<br/>retornou 200?"}
     C -->|"Não"| F2["status = falhou<br/>error_code = QUALITY_DETAILS_FETCH_FAILED"]
     C -->|"Sim"| D["status = gerando_relatorio"]
-    D --> E{"POST intelligence /synthesize<br/>respondeu 200 em até 10 s?"}
+    D --> E{"POST intelligence /synthesize<br/>respondeu 200 em até 30 s?"}
     E -->|"Não"| F3["status = falhou<br/>error_code = INTELLIGENCE_SERVICE_UNAVAILABLE"]
     E -->|"Sim"| OK["status = concluida"]
 
@@ -222,9 +268,16 @@ flowchart TD
 | `INVALID_FILE_FORMAT` | Validação no `analysis-service` | Formato de arquivo inválido. Apenas arquivos CSV (.csv) são aceitos. |
 | `FILE_TOO_LARGE` | Validação de tamanho no upload | O arquivo excede o limite máximo permitido de 25MB. |
 | `STORAGE_WRITE_ERROR` | Falha de disco/IO no upload | Não foi possível gravar o arquivo temporário no storage. |
-| `DATA_QUALITY_SERVICE_UNAVAILABLE` | Chamada `POST /internal/process` | O motor determinístico de qualidade está temporariamente indisponível ou demorou a responder. |
-| `QUALITY_DETAILS_FETCH_FAILED` | Chamada `GET /internal/quality/{id}` | Não foi possível recuperar os dados de qualidade processados. |
-| `INTELLIGENCE_SERVICE_UNAVAILABLE` | Chamada `POST /internal/synthesize` | O serviço de inteligência e síntese técnica não pôde concluir o relatório. |
+| `DATA_QUALITY_SERVICE_UNAVAILABLE` | Chamada HTTP `POST /internal/process` (modo fallback) | O motor determinístico de qualidade está temporariamente indisponível ou demorou a responder. |
+| `QUALITY_DETAILS_FETCH_FAILED` | Chamada HTTP `GET /internal/quality/{id}` | Não foi possível recuperar os dados de qualidade processados. |
+| `INTELLIGENCE_SERVICE_UNAVAILABLE` | Chamada HTTP `POST /internal/synthesize` (modo fallback) | O serviço de inteligência e síntese técnica não pôde concluir o relatório. |
+| `MESSAGING_BROKER_UNAVAILABLE` | Publicação AMQP no `analysis-service` | O serviço de mensageria está temporariamente indisponível para enfileirar a análise. |
+| `INVALID_EVENT_PAYLOAD` | Validação de envelope AMQP nos workers (DLQ) | Payload inválido recebido pela fila de processamento. |
+| `CSV_FILE_NOT_FOUND` | Worker `data-quality-service` (DLQ) | O arquivo CSV enviado não foi encontrado no armazenamento compartilhado. |
+| `INVALID_CSV_CONTENT` | Worker `data-quality-service` (DLQ) | Não foi possível interpretar o arquivo CSV. Verifique a estrutura e codificação. |
+| `QUALITY_PROCESSING_FAILED` | Worker `data-quality-service` após retries (DLQ) | O motor determinístico de qualidade não pôde processar o arquivo após novas tentativas. |
+| `QUALITY_PROFILE_NOT_FOUND` | Worker `intelligence-service` (DLQ) | Não foram encontrados os resultados de qualidade para gerar o relatório técnico. |
+| `INTELLIGENCE_PROCESSING_FAILED` | Worker `intelligence-service` após retries (DLQ) | O serviço de inteligência não pôde concluir a síntese do relatório técnico. |
 
 ### 6.3 Estratégia de Fallback na Leitura de Relatórios
 
@@ -267,9 +320,9 @@ flowchart TD
 
 ### 7.1 Provedores Suportados
 
-1. **Hugging Face Serverless API (Padrão em Nuvem):**
+1. **Hugging Face Inference Providers Router (Padrão em Nuvem):**
    - **Modelo:** `Qwen/Qwen2.5-7B-Instruct`.
-   - **Comunicação:** HTTPS via API Serverless gratuita utilizando token de serviço (`HF_TOKEN`).
+   - **Comunicação:** HTTPS via endpoint compatível com Chat Completions (`https://router.huggingface.co/v1/chat/completions`) utilizando token de serviço (`HF_TOKEN` com permissão *Make calls to Inference Providers*).
    - **Controle de Timeout:** 15 segundos.
    - **Tolerância a Falhas:** Captura status 429 (rate-limit) e 503 (cold start), acionando o fallback local sem quebrar o job.
 2. **Ollama em Servidor LAN (GPU de Alta Performance):**
@@ -356,37 +409,35 @@ erDiagram
 
 ## 10. Decisões de Projeto e Limitações Conhecidas
 
-Como parte do rigor arquitetural do projeto, destacam-se decisões conscientes tomadas na fase atual (Módulo 2) e seus caminhos de mitigação:
+Como parte do rigor arquitetural do projeto, destacam-se decisões conscientes tomadas ao longo dos quatro módulos e seus caminhos de evolução:
 
-1. **Orquestração Local em Memória vs Fila Distribuída:**
-   - *Decisão Atual:* O `analysis-service` utiliza `BackgroundTasks` nativo do FastAPI para orquestrar a sequência de chamadas HTTP.
-   - *Limitação:* Se o container do `analysis-service` for reiniciado durante o processamento, a tarefa em execução em memória será interrompida e o job poderá permanecer em estado intermediário.
-   - *Mitigação Planejada:* Introdução do RabbitMQ no Módulo 4, com garantia de re-entrega de mensagens e persistência de tarefas em fila externa.
-2. **Armazenamento de Arquivos em Disco Local:**
-   - *Decisão Atual:* O CSV é gravado no sistema de arquivos local do serviço de análise e compartilhado via path (`file_ref`) ou transmitido via payload serializado.
-   - *Limitação:* Em deploys com instâncias efêmeras isoladas em hosts físicos distintos, o caminho local deixa de ser acessível entre máquinas.
-   - *Mitigação Planejada:* Uso de volumes persistentes compartilhados (`docker compose` no Módulo 3) ou buckets compatíveis com S3 (AWS/MinIO/Cloudflare R2) para produção multi-host.
+1. **Mensageria Distribuída (RabbitMQ) com Flag de Compatibilidade (`MESSAGING_ENABLED`):**
+   - *Evolução Implementada (Módulo 4):* O pipeline em Docker Compose passou a operar inteiramente via **RabbitMQ** (`MESSAGING_ENABLED=true`), garantindo persistência de mensagens em filas duráveis, tolerância a quedas temporárias de workers, ACK manual, retry controlado, DLQ e idempotência.
+   - *Compatibilidade Nuvem:* O fallback via `BackgroundTasks` HTTP permanece disponível quando `MESSAGING_ENABLED=false`, preservando o funcionamento do deploy gratuito em nuvem (Render) sem exigir um broker externo pago.
+2. **Armazenamento de Arquivos em Volume Compartilhado:**
+   - *Decisão Atual:* No Docker Compose, o CSV é gravado no volume nomeado `storage` e lido diretamente por `file_ref` pelo `data-quality-service`, nunca trafegando na fila AMQP.
+   - *Evolução Multi-Host:* Em produção distribuída entre hosts físicos distintos, o volume compartilhado pode ser substituído por object storage compatível com S3 (MinIO, AWS S3 ou Cloudflare R2) mantendo exatamente o mesmo contrato de `file_ref`.
 3. **Compartilhamento de Banco de Dados:**
-   - *Decisão Atual:* Os três microsserviços acessam o mesmo banco PostgreSQL no Supabase, cada qual atuando sobre suas respectivas tabelas.
-   - *Vantagem:* Permitiu implementar o mecanismo de fallback de leitura de relatórios sem necessidade de barramentos complexos.
-   - *Limitação:* Introduz acoplamento de persistência entre os serviços. A segregação completa de bancos pode ser realizada caso o volume de dados justifique partições independentes.
+   - *Decisão Atual:* Os três microsserviços acessam o mesmo banco PostgreSQL, cada qual atuando sobre suas respectivas tabelas (`analysis_jobs`, `dataset_profiles`/`quality_findings` e `analysis_reports`).
+   - *Vantagem:* Permitiu implementar o fallback de leitura de relatórios sem barramentos adicionais.
+   - *Evolução:* A segregação física em bancos separados pode ser aplicada conforme crescimento de carga.
 
 ---
 
 ## 11. Comparativo Teórico: Mensageria (RabbitMQ) vs Streaming (Kafka/Redpanda)
 
-Para fundamentação teórica de sistemas distribuídos e atendimento aos requisitos do Módulo 4:
+Para fundamentação teórica completa aplicada ao DataGuard (incluindo projeção de tópicos, *consumer groups*, replay histórico e critérios de migração), consulte o estudo dedicado em **[docs/MENSAGERIA_VS_STREAMING.md](MENSAGERIA_VS_STREAMING.md)**.
 
 ```mermaid
 flowchart TD
-    subgraph Mensageria["Abordagem por Mensageria Tradicional (RabbitMQ - Planejado no Módulo 4)"]
+    subgraph Mensageria["Abordagem por Mensageria Tradicional (RabbitMQ - Implementado no Módulo 4)"]
         P1["Produtor (Analysis Service)"] -->|Publica| EX["Exchange: dataguard.exchange"]
-        EX -->|Roteia| Q1["Fila de Tarefas: analysis.requested"]
+        EX -->|Roteia| Q1["Fila de Tarefas: dataguard.quality.requested"]
         Q1 -->|Entrega e Remove após ACK| C1["Consumidor (Data Quality)"]
     end
 
     subgraph Streaming["Abordagem por Streaming de Eventos (Apache Kafka / Redpanda - Projeção Teórica)"]
-        P2["Produtor (Analysis Service)"] -->|Append-Only| TOPIC["Tópico Particionado: 'data-events'"]
+        P2["Produtor (Analysis Service)"] -->|Append-Only| TOPIC["Tópico Particionado: 'dataguard.analysis.events'"]
         TOPIC -->|Offset 0, 1, 2... (Log Persistente)| TOPIC
         TOPIC -->|Leitura por Offset sem Remoção| CG1["Consumer Group: Data Quality"]
         TOPIC -->|Replay / Leitura Independente| CG2["Consumer Group: Auditoria & Analytics"]
@@ -395,12 +446,12 @@ flowchart TD
 
 <div align="center">
 
-| Critério Arquitetural | RabbitMQ (Planejado para o DataGuard) | Apache Kafka / Redpanda (Streaming) |
+| Critério Arquitetural | RabbitMQ (Implementado no DataGuard) | Apache Kafka / Redpanda (Streaming) |
 | :--- | :--- | :--- |
 | **Paradigma Central** | **Broker de Mensagens Inteligente:** Focado em filas de trabalho pontuais e roteamento flexível. | **Log Distribuído Gravado em Disco:** Focado em retenção durável e imutável de eventos ordenados. |
 | **Ciclo de Vida do Dado** | Transiente: A mensagem é excluída da fila assim que o worker confirma o processamento (`basic_ack`). | Durável: Eventos permanecem gravados de acordo com a política de retenção em disco configurada. |
 | **Controle de Leitura** | Gerenciado pelo broker: o RabbitMQ monitora o envio e a confirmação de cada mensagem. | Gerenciado pelo consumidor: cada grupo mantém seu próprio ponteiro de leitura (**offset**). |
 | **Capacidade de Replay** | Baixa ou inexistente sem republicação explícita de mensagens. | Alta: Permite reposicionar o offset no passado e reprocessar eventos a qualquer momento. |
-| **Adequação ao DataGuard** | **Ideal para o projeto:** Cada upload de arquivo CSV é uma tarefa unitária de processamento analítico discreto. | Superdimensionado para o escopo atual; seria justificável para ingestão massiva de telemetria contínua. |
+| **Adequação ao DataGuard** | **Ideal para o projeto:** Cada upload de arquivo CSV é uma tarefa unitária de processamento analítico discreto. | Justificável em evolução futura com ingestão contínua de registros, replay de regras e múltiplos consumidores de BI/auditoria. |
 
 </div>

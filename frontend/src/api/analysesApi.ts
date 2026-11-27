@@ -6,6 +6,7 @@ import {
   mockCreateAnalysis,
   mockGetAnalysis,
   mockGetAnalysisReport,
+  mockListAnalyses,
 } from "./mocks";
 
 export interface ListAnalysesParams {
@@ -15,6 +16,7 @@ export interface ListAnalysesParams {
 }
 
 export async function listAnalyses(params: ListAnalysesParams = {}, signal?: AbortSignal): Promise<JobListResponse> {
+  if (MOCKS_ENABLED) return mockListAnalyses(params, signal);
   const { data } = await apiClient.get<JobListResponse>("/analyses", {
     params: { page: params.page ?? 1, page_size: params.pageSize ?? 10, status: params.status },
     signal,
@@ -43,9 +45,25 @@ export async function createAnalysis(file: File, signal?: AbortSignal): Promise<
     headers: {
       "Content-Type": "multipart/form-data",
     },
+    // Folga para o "cold start" do plano gratuito (o servico pode levar ~1 min para acordar).
+    timeout: UPLOAD_TIMEOUT_MS,
     signal,
   });
   return data;
+}
+
+const UPLOAD_TIMEOUT_MS = 120_000;
+
+/**
+ * Acorda o analysis-service (plano gratuito hiberna por inatividade) sem esperar resposta.
+ * Chamado ao abrir a tela de upload, para o envio nao pegar o servico dormindo.
+ */
+export function wakeBackend(): void {
+  if (MOCKS_ENABLED) return;
+  const base = apiClient.defaults.baseURL ?? "";
+  const origin = base.replace(/\/api\/?$/, "");
+  if (!origin) return;
+  void fetch(`${origin}/health`, { mode: "no-cors", cache: "no-store" }).catch(() => undefined);
 }
 
 /**

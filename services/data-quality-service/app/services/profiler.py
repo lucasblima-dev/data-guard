@@ -1,3 +1,5 @@
+import asyncio
+import io
 import logging
 import os
 from typing import Any
@@ -11,6 +13,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.quality import DatasetProfileModel, QualityFindingModel
 
 logger = logging.getLogger(__name__)
+
+
+class CsvFileNotFoundError(FileNotFoundError):
+    """Erro permanente quando o arquivo CSV referenciado não existe no storage."""
+
+
+class InvalidCsvContentError(ValueError):
+    """Erro permanente quando o conteúdo do CSV é inválido ou corrompido."""
 
 
 class ProfilerService:
@@ -103,25 +113,58 @@ class ProfilerService:
         file_ref: str | None,
         filename: str,
         csv_content: str | None = None,
+        strict_file_read: bool = False,
     ) -> tuple[DatasetProfileModel, list[QualityFindingModel]]:
+        existing_profile = await cls.get_profile_by_analysis_id(db, analysis_id)
+        if existing_profile is not None:
+            existing_findings = await cls.get_findings_by_analysis_id(db, analysis_id)
+            logger.info(
+                "Perfil já existente para analysis_id=%s; retornando resultado idempotente.",
+                analysis_id,
+            )
+            return existing_profile, existing_findings
+
         df: pd.DataFrame | None = None
 
         if csv_content:
             try:
-                import io
-                df = pd.read_csv(io.StringIO(csv_content))
-                logger.info("Arquivo CSV carregado com sucesso via csv_content (comunicação entre containers).")
-            except Exception as e:
-                logger.warning("Falha ao ler CSV de csv_content: %s", e)
+                df = await asyncio.to_thread(pd.read_csv, io.StringIO(csv_content))
+                logger.info("Arquivo CSV carregado com sucesso via csv_content (analysis_id=%s).", analysis_id)
+            except Exception as exc:
+                if strict_file_read:
+                    raise InvalidCsvContentError(f"Falha ao interpretar o conteúdo CSV: {exc}") from exc
+                logger.warning("Falha ao ler CSV de csv_content (analysis_id=%s): %s", analysis_id, exc)
 
-        if df is None and file_ref and os.path.exists(file_ref):
-            try:
-                df = pd.read_csv(file_ref)
-                logger.info("Arquivo CSV carregado com sucesso a partir do disco: %s", file_ref)
-            except Exception as e:
-                logger.warning("Falha ao ler CSV '%s': %s. Usando fallback de amostra.", file_ref, e)
+        if df is None and file_ref:
+            if os.path.exists(file_ref):
+                try:
+                    df = await asyncio.to_thread(pd.read_csv, file_ref)
+                    logger.info(
+                        "Arquivo CSV carregado com sucesso a partir do storage: %s (analysis_id=%s)",
+                        file_ref,
+                        analysis_id,
+                    )
+                except Exception as exc:
+                    if strict_file_read:
+                        raise InvalidCsvContentError(
+                            f"Não foi possível ler ou interpretar o arquivo CSV '{filename}'."
+                        ) from exc
+                    logger.warning(
+                        "Falha ao ler CSV '%s' (analysis_id=%s): %s. Usando fallback de amostra.",
+                        file_ref,
+                        analysis_id,
+                        exc,
+                    )
+            elif strict_file_read:
+                raise CsvFileNotFoundError(
+                    f"Arquivo CSV referenciado em '{file_ref}' não foi encontrado no storage compartilhado."
+                )
 
         if df is None:
+            if strict_file_read:
+                raise CsvFileNotFoundError(
+                    f"Referência de arquivo inválida ou ausente para '{filename}'."
+                )
             df = pd.DataFrame({
                 "id": [1, 2, 3, 4, 5, 5],
                 "categoria": ["A", "B", "A", None, "B", "B"],
@@ -129,7 +172,10 @@ class ProfilerService:
                 "score": [0.85, 0.92, 0.77, 0.64, 0.95, 0.95],
             })
 
-        columns_summary, findings_data = cls.compute_dataframe_profile(df)
+        if strict_file_read and len(df.columns) == 0:
+            raise InvalidCsvContentError(f"O arquivo CSV '{filename}' não possui colunas válidas.")
+
+        columns_summary, findings_data = await asyncio.to_thread(cls.compute_dataframe_profile, df)
 
         profile = DatasetProfileModel(
             analysis_id=analysis_id,

@@ -1,5 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
+from functools import partial
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
@@ -8,9 +9,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1 import v1_router
 from app.config import settings
 from app.database import init_db
+from app.messaging import IntelligenceMessagingBroker, handle_quality_completed
+from app.services.report_service import ReportService
 
 logging.basicConfig(level=settings.LOG_LEVEL)
 logger = logging.getLogger(__name__)
+
+messaging_broker = IntelligenceMessagingBroker()
+messaging_report_service = ReportService()
 
 
 @asynccontextmanager
@@ -25,7 +31,28 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             "A aplicação continuará rodando para healthchecks e reconectará sob demanda.",
             exc,
         )
+
+    if settings.MESSAGING_ENABLED:
+        try:
+            await messaging_broker.connect()
+            await messaging_broker.start_consuming(
+                partial(
+                    handle_quality_completed,
+                    broker=messaging_broker,
+                    report_service=messaging_report_service,
+                )
+            )
+        except Exception as exc:
+            logger.warning(
+                "Não foi possível inicializar o consumidor RabbitMQ no startup: %s. "
+                "As rotas HTTP internas continuam operacionais.",
+                exc,
+            )
+
     yield
+
+    if settings.MESSAGING_ENABLED:
+        await messaging_broker.close()
     logger.info("Encerrando DataGuard Intelligence Service...")
 
 
@@ -57,6 +84,13 @@ app.include_router(v1_router, prefix="/internal")
     response_model=dict[str, str],
 )
 async def health_check() -> dict[str, str]:
+    model_id = (
+        settings.HF_MODEL_ID
+        if settings.LLM_PROVIDER == "huggingface"
+        else settings.OLLAMA_MODEL
+        if settings.LLM_PROVIDER == "ollama"
+        else "rules_only"
+    )
     return {
         "status": "healthy",
         "service": "intelligence-service",
@@ -64,6 +98,10 @@ async def health_check() -> dict[str, str]:
         "environment": settings.ENVIRONMENT,
         "llm_provider": settings.LLM_PROVIDER,
         "llm_enabled": str(settings.LLM_ENABLED),
+        "llm_model": model_id,
+        "hf_token_configured": str(bool(settings.HF_TOKEN)),
+        "messaging_enabled": str(settings.MESSAGING_ENABLED),
+        "messaging_connected": str(messaging_broker.is_connected),
     }
 
 

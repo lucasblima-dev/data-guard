@@ -1,5 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
+from functools import partial
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
@@ -8,9 +9,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1 import v1_router
 from app.config import settings
 from app.database import init_db
+from app.messaging import QualityMessagingBroker, handle_analysis_requested
 
 logging.basicConfig(level=settings.LOG_LEVEL)
 logger = logging.getLogger(__name__)
+
+messaging_broker = QualityMessagingBroker()
 
 
 @asynccontextmanager
@@ -25,7 +29,24 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             "A aplicação continuará rodando para healthchecks e reconectará sob demanda.",
             exc,
         )
+
+    if settings.MESSAGING_ENABLED:
+        try:
+            await messaging_broker.connect()
+            await messaging_broker.start_consuming(
+                partial(handle_analysis_requested, broker=messaging_broker)
+            )
+        except Exception as exc:
+            logger.warning(
+                "Não foi possível inicializar o consumidor RabbitMQ no startup: %s. "
+                "As rotas HTTP internas continuam operacionais.",
+                exc,
+            )
+
     yield
+
+    if settings.MESSAGING_ENABLED:
+        await messaging_broker.close()
     logger.info("Encerrando DataGuard Data Quality Service...")
 
 
@@ -61,6 +82,8 @@ async def health_check() -> dict[str, str]:
         "service": "data-quality-service",
         "version": settings.APP_VERSION,
         "environment": settings.ENVIRONMENT,
+        "messaging_enabled": str(settings.MESSAGING_ENABLED),
+        "messaging_connected": str(messaging_broker.is_connected),
     }
 
 @app.get(

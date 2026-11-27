@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Loader2, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createAnalysis } from "../../api/analysesApi";
+import { createAnalysis, wakeBackend } from "../../api/analysesApi";
 import { ApiError } from "../../api/client";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Button } from "../../components/ui/Button";
@@ -12,7 +12,7 @@ import { Dropzone } from "./Dropzone";
 import { validateCsv } from "./validateCsv";
 
 const pipeline = [
-  { label: "Envio", hint: "Recebimento do arquivo" },
+  { label: "Envio", hint: "Enfileiramento assíncrono" },
   { label: "Validação", hint: "Schema e encoding" },
   { label: "Análise", hint: "Perfilamento determinístico" },
   { label: "Relatório", hint: "Síntese dos achados" },
@@ -23,8 +23,21 @@ export function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<{ title: string; message: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [slow, setSlow] = useState(false);
 
-  // Soltar fora da area nao deve fazer o navegador abrir o arquivo.
+  useEffect(() => {
+    wakeBackend();
+  }, []);
+
+  useEffect(() => {
+    if (!submitting) {
+      setSlow(false);
+      return;
+    }
+    const t = window.setTimeout(() => setSlow(true), 6000);
+    return () => window.clearTimeout(t);
+  }, [submitting]);
+
   useEffect(() => {
     const prevent = (e: DragEvent) => e.preventDefault();
     window.addEventListener("dragover", prevent);
@@ -35,10 +48,25 @@ export function UploadPage() {
     };
   }, []);
 
-  const handleSelect = (picked: File) => {
+  const handleSelect = async (picked: File) => {
     const problem = validateCsv(picked);
-    setError(problem ? { title: "Arquivo inválido", message: problem } : null);
-    setFile(problem ? null : picked);
+    if (problem) {
+      setError({ title: "Arquivo inválido", message: problem });
+      setFile(null);
+      return;
+    }
+    try {
+      const content = await picked.arrayBuffer();
+      setFile(new File([content], picked.name, { type: "text/csv", lastModified: picked.lastModified }));
+      setError(null);
+    } catch {
+      setFile(null);
+      setError({
+        title: "Não foi possível ler o arquivo",
+        message:
+          "O navegador não conseguiu abrir o arquivo. Se ele está no Google Drive ou em outro aplicativo, baixe-o para o aparelho e selecione novamente.",
+      });
+    }
   };
 
   const handleSubmit = async () => {
@@ -65,8 +93,8 @@ export function UploadPage() {
         description="Perfile e audite a qualidade dos seus dados tabulares."
       />
 
-      <motion.div variants={stagger(0.05)} initial="hidden" animate="show" className="grid gap-4 lg:grid-cols-12">
-        <motion.div variants={fadeUp} className="space-y-5 lg:col-span-8">
+      <motion.div variants={stagger(0.05)} initial="hidden" animate="show" className="grid gap-4 xl:grid-cols-12">
+        <motion.div variants={fadeUp} className="space-y-5 xl:col-span-8">
           <Dropzone
             file={file}
             disabled={submitting}
@@ -84,7 +112,7 @@ export function UploadPage() {
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="flex items-start gap-4 rounded-card border border-danger/25 bg-danger/[0.06] p-5 backdrop-blur-xl"
+                className="flex items-start gap-4 rounded-card border border-danger/25 bg-danger/6 p-5 backdrop-blur-xl"
               >
                 <span className="grid size-9 shrink-0 place-items-center rounded-full bg-danger/12 text-danger ring-1 ring-inset ring-danger/20">
                   <TriangleAlert className="size-4" strokeWidth={1.75} />
@@ -94,6 +122,20 @@ export function UploadPage() {
                   <p className="mt-1 text-sm text-fg-muted">{error.message}</p>
                 </div>
               </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence initial={false}>
+            {slow && (
+              <motion.p
+                role="status"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="text-sm text-fg-muted"
+              >
+                O servidor está iniciando (plano gratuito) e pode levar até 1 minuto. Mantenha esta tela aberta.
+              </motion.p>
             )}
           </AnimatePresence>
 
@@ -114,7 +156,7 @@ export function UploadPage() {
           </div>
         </motion.div>
 
-        <div className="space-y-4 lg:col-span-4">
+        <div className="space-y-4 xl:col-span-4">
           <Card className="p-6">
             <h3 className="text-sm font-medium">O que acontece depois</h3>
             <ol className="mt-5 space-y-4">

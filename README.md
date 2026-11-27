@@ -209,6 +209,50 @@ flowchart LR
 - **Comunicação:** Chamadas síncronas HTTP entre os serviços com tratamento de erros (timeouts e fallbacks amigáveis).
 - **Artefatos:** Diagrama arquitetural detalhado dos fluxos e documentação dos contratos de interface.
 
+### Módulo 3: Containers
+
+- **Entregável:** Empacotamento de todos os componentes através de `Dockerfile` em camadas otimizadas e orquestração de ambiente por `docker-compose.yml`.
+- **Persistência:** Volumes declarativos para PostgreSQL e arquivos locais, garantindo retenção de dados após ciclos de `docker compose down` e `docker compose up`.
+- **Artefatos:** Guia comparativo entre execução bare-metal/deploy direto e execução conteinerizada.
+
+### Módulo 4: Mensageria e Streaming de Eventos
+
+- **Entregável:** Integração completa com **RabbitMQ 3.13** em container (`rabbitmq:3.13-management-alpine`), desacoplando o pipeline de análises via `aio-pika` com troca de eventos `analysis.requested` -> `analysis.quality.started` -> `analysis.quality.completed` -> `analysis.completed` (além de `analysis.failed`).
+- **Garantias distribuídas implementadas:**
+  - Exchange principal `dataguard.exchange` (`topic`, durável) e Dead Letter Exchange `dataguard.dlx` (`direct`, durável) com DLQs dedicadas (`dataguard.quality.dlq`, `dataguard.intelligence.dlq`, `dataguard.analysis.dlq`).
+  - **Zero dados brutos na fila:** apenas `analysis_id`, `file_ref` e metadados trafegam no envelope JSON; o CSV é lido via volume compartilhado `storage`.
+  - **ACK manual** após commit no banco, controle de **retry** (`x-retry-count` até 3 tentativas), isolamento de falhas permanentes na **DLQ** (`nack(requeue=False)`) e **idempotência** nos três microsserviços.
+  - Flag `MESSAGING_ENABLED` (`true` no Docker Compose, `false` como fallback HTTP) preservando compatibilidade com o deploy em nuvem no Render.
+- **Evidência de fluxo publicado e consumido (logs estruturados):**
+
+  ```text
+  analysis-service-1     | [EVENT_PUBLISHED] event_type=analysis.requested correlation_id=<id> analysis_id=<id>
+  data-quality-service-1 | [EVENT_RECEIVED]  event_type=analysis.requested correlation_id=<id> analysis_id=<id>
+  data-quality-service-1 | [EVENT_PUBLISHED] event_type=analysis.quality.started analysis_id=<id>
+  analysis-service-1     | [EVENT_ACK]       event_type=analysis.quality.started analysis_id=<id> new_status=analisando
+  data-quality-service-1 | [EVENT_PUBLISHED] event_type=analysis.quality.completed analysis_id=<id>
+  data-quality-service-1 | [EVENT_ACK]       event_type=analysis.requested analysis_id=<id>
+  analysis-service-1     | [EVENT_ACK]       event_type=analysis.quality.completed analysis_id=<id> new_status=gerando_relatorio
+  intelligence-service-1 | [EVENT_RECEIVED]  event_type=analysis.quality.completed analysis_id=<id>
+  intelligence-service-1 | [EVENT_PUBLISHED] event_type=analysis.completed analysis_id=<id>
+  intelligence-service-1 | [EVENT_ACK]       event_type=analysis.quality.completed analysis_id=<id>
+  analysis-service-1     | [EVENT_ACK]       event_type=analysis.completed analysis_id=<id> new_status=concluida
+  ```
+
+- **Comparativo Resumido: Mensageria (RabbitMQ) vs. Streaming de Eventos (Apache Kafka / Redpanda)**
+
+  ```mermaid
+  flowchart LR
+      subgraph RMQ["Mensageria (RabbitMQ - Implementado)"]
+          P1["Produtor\n(analysis-service)"] --> B1{{"Broker\n(dataguard.exchange)"}} --> C1["Consumidor\n(data-quality-service)"]
+      end
+      subgraph KFK["Streaming (Kafka / Redpanda - Projeção)"]
+          P2["Produtor\n(analysis-service)"] --> B2[("Tópico Particionado\n(Log + Offsets)")] --> C2["Consumer Groups\n(Qualidade + Auditoria/BI)"]
+      end
+  ```
+
+  No DataGuard, o **RabbitMQ** é a escolha ideal hoje porque cada upload de CSV é uma tarefa discreta (*work queue*) que exige roteamento por evento, confirmação individual (`ACK`) e isolamento automático de mensagens inválidas via DLQ com baixo custo operacional. Em uma modelagem com **Apache Kafka / Redpanda**, os serviços publicariam fatos imutáveis em um tópico particionado pela chave `analysis_id` (garantindo ordem causal), permitindo múltiplos *consumer groups* independentes (ex.: qualidade, inteligência, projeção de status e um novo consumidor de BI/auditoria) com **replay histórico** por reposicionamento de offset — abordagem que se justificaria caso o sistema evoluísse para ingestão contínua linha a linha em alta vazão ou reprocessamento recorrente de todo o histórico. O estudo completo está disponível em [docs/MENSAGERIA_VS_STREAMING.md](docs/MENSAGERIA_VS_STREAMING.md).
+
 ---
 
 ## Tecnologias Utilizadas
@@ -236,19 +280,23 @@ flowchart LR
 ```text
 data-guard/
 ├── README.md                           # Visão geral, setup e guia de avaliação
+├── CHANGELOG.md                        # Histórico incremental dos Módulos 1 a 4
 ├── AGENTS.md                           # Diretrizes técnicas para agentes de IA e devs
-├── docker-compose.yml                  # Orquestração do ambiente completo
+├── docker-compose.yml                  # Orquestração do ambiente completo (6 containers)
 ├── render.yaml                         # Blueprint de deploy em nuvem (Render)
 ├── .env.example                        # Modelo de configuração de variáveis de ambiente
 ├── .gitignore                          # Regras de exclusão de arquivos e diretórios
 │
 ├── scripts/                            # Scripts utilitários e testes automatizados
 │   ├── test_api.ps1                    # Script PowerShell para testes do CRUD
-│   └── test_api.sh                     # Script Bash/cURL para ambientes Unix
+│   ├── test_api.sh                     # Script Bash/cURL para ambientes Unix
+│   ├── test_microservices_e2e.py       # Teste E2E dos microsserviços via HTTP
+│   └── test_messaging_e2e.py           # Suíte E2E de mensageria (5 cenários RabbitMQ)
 │
 ├── docs/                               # Documentação técnica e acadêmica
 │   ├── ARQUITETURA.md                  # Especificação profunda da arquitetura distribuída
-│   └── ARQUITETURA_FRONTEND.md         # Arquitetura da camada de apresentação (SPA)
+│   ├── ARQUITETURA_FRONTEND.md         # Arquitetura da camada de apresentação (SPA)
+│   └── MENSAGERIA_VS_STREAMING.md      # Estudo comparativo RabbitMQ vs. Kafka / Redpanda
 │
 ├── frontend/                           # Aplicação Web SPA desacoplada
 │   ├── Dockerfile                      # Multi-stage build (Vite -> Nginx)
@@ -282,8 +330,7 @@ data-guard/
 │       └── tests/
 │
 ├── infra/                              # Configurações de infraestrutura
-│   ├── postgres/                       # Scripts de inicialização do banco
-│   └── rabbitmq/                       # Definições de exchanges, filas e permissões
+│   └── rabbitmq/                       # Manifesto declarativo (topology.json) e docs AMQP
 │
 └── storage/                            # Volume local compartilhado para arquivos temporários
 ```
@@ -313,7 +360,7 @@ data-guard/
    cp .env.example .env
    ```
 
-3. Inicialize a interface, os serviços de backend, o banco e o broker:
+3. Construa as imagens e inicialize a interface, os serviços de backend e o banco:
 
    ```bash
    docker compose up --build -d
@@ -328,15 +375,83 @@ data-guard/
 5. Acesse os pontos de extremidade da aplicação:
    - **Interface Web (Frontend):** [http://localhost:3000](http://localhost:3000)
    - **Analysis Service (API & Swagger):** [http://localhost:8000/docs](http://localhost:8000/docs)
-   - **Data Quality Service:** [http://localhost:8001/docs](http://localhost:8001/docs)
-   - **Intelligence Service:** [http://localhost:8002/docs](http://localhost:8002/docs)
-   - **Painel Administrativo do RabbitMQ:** [http://localhost:15672](http://localhost:15672) (Credenciais: `guest` / `guest` em desenvolvimento local)
+   - **Data Quality Service:** [http://127.0.0.1:8001/docs](http://127.0.0.1:8001/docs)
+   - **Intelligence Service:** [http://127.0.0.1:8002/docs](http://127.0.0.1:8002/docs)
+   - **RabbitMQ Management UI:** [http://localhost:15672](http://localhost:15672) *(login com `RABBITMQ_USER` e `RABBITMQ_PASSWORD` do `.env`)*
+
+   O ambiente completo sobe **6 containers**: `postgres`, `rabbitmq`, `analysis-service`, `data-quality-service`, `intelligence-service` e `frontend` (Nginx), com 3 volumes persistentes (`pgdata`, `rabbitmq_data` e `storage`). Os serviços `8001`, `8002` e o RabbitMQ (`5672`/`15672`) são publicados somente em `127.0.0.1`, para inspeção; o frontend conversa exclusivamente com o `analysis-service`.
+
+6. Para validar todos os cenários do Módulo 4 automaticamente (fluxo feliz assíncrono, resiliência com `data-quality-service` parado, DLQ, idempotência e concorrência em lote):
+
+   ```bash
+   python scripts/test_messaging_e2e.py
+   ```
+
+   Para acompanhar os eventos publicados e consumidos em tempo real durante demonstrações:
+
+   ```bash
+   docker compose logs -f analysis-service data-quality-service intelligence-service
+   ```
+
+7. Para abrir a interface em outro aparelho da rede (por exemplo, o celular), defina no `.env` a URL da API vista pelo navegador **antes** de construir e reconstrua o frontend:
+
+   ```dotenv
+   VITE_API_URL=http://192.168.0.10:8000/api
+   ```
+
+   ```bash
+   docker compose up --build -d frontend
+   ```
+
+#### Teste de persistência (`docker compose down` / `up`)
+
+1. Com o ambiente no ar, envie um CSV pela interface e aguarde a análise ficar `concluída`.
+2. Derrube os containers (os volumes são mantidos):
+
+   ```bash
+   docker compose down
+   ```
+
+3. Suba novamente, sem reconstruir:
+
+   ```bash
+   docker compose up -d
+   ```
+
+4. Abra o **Histórico**: a análise continua lá, com o mesmo ID e o mesmo relatório. Os dados vivem nos volumes nomeados `pgdata` (PostgreSQL) e `storage` (CSVs enviados).
+5. Para apagar também os dados, use `docker compose down -v`.
+
+#### Comparação: deploy direto (Módulos 1 e 2) vs. containers (Módulo 3)
+
+| Aspecto | Deploy direto (Render + Supabase) | Containers (Docker Compose) |
+| :--- | :--- | :--- |
+| **Empacotamento** | Código-fonte; a plataforma instala as dependências no build | Imagem imutável por serviço, descrita no `Dockerfile` |
+| **Reprodutibilidade** | Depende das versões de Python e Node da plataforma (fixadas por variável) | A mesma imagem roda igual em qualquer máquina |
+| **Banco de dados** | Supabase remoto | PostgreSQL em container, com volume persistente |
+| **Arquivos enviados** | Disco efêmero de cada serviço, sem compartilhamento | Volume `storage` compartilhado: o `data-quality-service` lê o CSV real |
+| **Rede entre serviços** | URLs públicas `onrender.com` | Nome do serviço na rede interna do Compose |
+| **Subir o ambiente** | 4 serviços configurados no painel ou no `render.yaml` | Um comando: `docker compose up --build` |
+| **Limites** | Plano gratuito hiberna (cold start de ~40 s) | Sem hibernação, mas consome recursos da máquina local |
+
+**O que ficou mais fácil:** reproduzir o ambiente completo, isolar dependências e compartilhar o CSV entre serviços. **O que ficou mais difícil:** escrever e manter os Dockerfiles, entender volumes e permissões, e o tempo de build das imagens (principalmente com Pandas). Nesta entrega o Docker é usado apenas localmente; o deploy no Render continua direto do código-fonte.
 
 ---
 
 ## Variáveis de Ambiente e Alternância de Provedores
 
 O arquivo `.env` controla os parâmetros de execução e permite alternar instantaneamente o provedor de inteligência artificial:
+
+### Mensageria (RabbitMQ)
+
+```dotenv
+MESSAGING_ENABLED=true
+RABBITMQ_USER=dataguard
+RABBITMQ_PASSWORD=troque_esta_senha
+RABBITMQ_EXCHANGE=dataguard.exchange
+RABBITMQ_DLX=dataguard.dlx
+```
+
+*(Com `MESSAGING_ENABLED=false`, o `analysis-service` volta ao pipeline HTTP interno usado no deploy em nuvem sem broker.)*
 
 ### Cenário 1: Uso com Hugging Face (Nuvem / Sem GPU)
 
@@ -345,21 +460,34 @@ LLM_ENABLED=true
 LLM_PROVIDER=huggingface
 HF_TOKEN=hf_seuTokenAqui
 HF_MODEL_ID=Qwen/Qwen2.5-7B-Instruct
+HF_API_URL=https://router.huggingface.co/v1/chat/completions
 ```
 
-### Cenário 2: Uso com Servidor Ollama na Rede Local (com GPU)
+*(O `HF_TOKEN` deve ser criado em `huggingface.co/settings/tokens` como Fine-grained com a permissão **Make calls to Inference Providers** habilitada.)*
+
+### Cenário 2: Uso com Servidor Ollama Local ou na Rede Local (com GPU)
 
 ```dotenv
 LLM_ENABLED=true
 LLM_PROVIDER=ollama
-OLLAMA_BASE_URL=http://192.168.1.100:11434
+OLLAMA_BASE_URL=http://host.docker.internal:11434
 OLLAMA_MODEL=qwen2.5:7b
 ```
+
+*(Em laboratório/LAN com servidor GPU dedicado, aponte `OLLAMA_BASE_URL` para `http://<IP_DA_MAQUINA_NA_LAN>:11434`.)*
 
 ### Cenário 3: Modo 100% Determinístico (Sem IA / Avaliação Offline)
 
 ```dotenv
 LLM_ENABLED=false
+```
+
+### Diagnóstico Rápido do Modelo LLM
+
+Para validar se o modelo configurado está respondendo diretamente (`llm_assisted`) ou verificar o motivo exato de eventual fallback, execute:
+
+```bash
+python scripts/test_llm.py --e2e
 ```
 
 > [!IMPORTANT]
@@ -370,5 +498,8 @@ LLM_ENABLED=false
 ## Documentação Complementar
 
 - **[Especificação de Arquitetura Técnica](docs/ARQUITETURA.md):** Detalhamento dos padrões distribuídos, contratos de mensagens, diagramas de sequência, fluxos de falha e modelagem de entidades.
+- **[Estudo Comparativo: Mensageria vs. Streaming](docs/MENSAGERIA_VS_STREAMING.md):** Comparação conceitual e prática entre RabbitMQ e Apache Kafka / Redpanda aplicada ao domínio do DataGuard.
 - **[Arquitetura do Frontend](docs/ARQUITETURA_FRONTEND.md):** Especificação da aplicação SPA desacoplada, ciclo de vida do polling, máquina de estados visual, tolerância a falhas e design system.
+- **[Topologia RabbitMQ](infra/rabbitmq/README.md):** Referência de exchanges, filas duráveis, bindings e Dead Letter Queues ([topology.json](infra/rabbitmq/topology.json)).
+- **[Changelog do Projeto](CHANGELOG.md):** Registro incremental das entregas dos Módulos 1 a 4.
 - **[Diretrizes para Agentes e Desenvolvedores](AGENTS.md):** Manual de operação para agentes autônomos de código, fluxos de trabalho, regras de validação e Definição de Pronto (DoD).

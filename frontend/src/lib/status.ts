@@ -2,7 +2,6 @@ import type { JobStatus } from "../types";
 
 export type Tone = "ok" | "warn" | "danger" | "info" | "progress" | "neutral";
 
-/** Mapeia o enum JobStatus (analysis-service) para tom visual e rotulo PT-BR. */
 export const jobStatusMeta: Record<JobStatus, { label: string; tone: Tone; active: boolean }> = {
   enviada: { label: "Enviada", tone: "neutral", active: true },
   validando: { label: "Validando", tone: "warn", active: true },
@@ -12,14 +11,12 @@ export const jobStatusMeta: Record<JobStatus, { label: string; tone: Tone; activ
   falhou: { label: "Falhou", tone: "danger", active: false },
 };
 
-/** Severidades do data-quality-service: info | warning | critical. */
 export const severityMeta: Record<string, { label: string; tone: Tone }> = {
   info: { label: "Informativo", tone: "info" },
   warning: { label: "Atenção", tone: "warn" },
   critical: { label: "Crítico", tone: "danger" },
 };
 
-/** Classes por tom: texto, fundo translucido e borda fina de baixo contraste. */
 export const toneClasses: Record<Tone, { text: string; bg: string; border: string; dot: string }> = {
   ok: { text: "text-ok", bg: "bg-ok/10", border: "border-ok/20", dot: "bg-ok" },
   warn: { text: "text-warn", bg: "bg-warn/10", border: "border-warn/20", dot: "bg-warn" },

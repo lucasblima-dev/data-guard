@@ -11,6 +11,8 @@ import { formatBytes, formatDate, formatTime } from "../../lib/format";
 import { tweenExit } from "../../lib/motion";
 import { jobStatusMeta } from "../../lib/status";
 import { ResultsDashboard } from "../quality/ResultsDashboard";
+import { PrintReport } from "../report/PrintReport";
+import { openPrintDialog } from "../report/openPrintDialog";
 import type { JobStatus } from "../../types/analysis";
 import { CompletionReveal } from "./CompletionReveal";
 import { FailureCard } from "./FailureCard";
@@ -33,8 +35,6 @@ export function AnalysisPage() {
   const report = useAnalysisReport(id, done);
   const reduceMotion = useReducedMotion();
 
-  // A animacao de conclusao so toca quando o status vira `concluida` com a pagina aberta;
-  // abrir uma analise ja concluida (ex.: pelo historico) mostra o resultado direto.
   const prevStatus = useRef<JobStatus | null>(null);
   const [celebrating, setCelebrating] = useState(false);
   const [celebrated, setCelebrated] = useState(false);
@@ -119,6 +119,18 @@ export function AnalysisPage() {
           <motion.div key="stepper" exit={{ opacity: 0, transition: tweenExit }}>
             <Card className="px-6 py-8">
               <StatusStepper status={job.status} />
+              {job.status !== "falhou" && (
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4 text-xs text-fg-subtle">
+                  <span>
+                    {job.status === "enviada"
+                      ? "Análise na fila aguardando processamento assíncrono. Esta tela atualiza automaticamente."
+                      : "Processamento assíncrono em andamento. Você pode acompanhar outras análises sem interromper esta."}
+                  </span>
+                  <Link to="/upload" className="font-medium text-accent-ink hover:underline">
+                    Enviar outro arquivo
+                  </Link>
+                </div>
+              )}
             </Card>
           </motion.div>
         )}
@@ -156,9 +168,18 @@ export function AnalysisPage() {
               text="A análise foi concluída, mas o relatório detalhado ainda não está disponível no serviço."
             />
           )}
-          {details?.profile && <ResultsDashboard details={details} hold={holding} instantHero={celebrated} />}
+          {details?.profile && (
+            <ResultsDashboard
+              details={details}
+              hold={holding}
+              instantHero={celebrated}
+              onPrint={() => openPrintDialog(job.original_filename)}
+            />
+          )}
         </div>
       )}
+
+      {done && details?.profile && <PrintReport job={job} details={details} />}
 
       <AnimatePresence>
         {celebrating && (

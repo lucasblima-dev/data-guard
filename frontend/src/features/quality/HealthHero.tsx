@@ -10,7 +10,6 @@ interface Props {
   findings: QualityFinding[];
   score: number | null;
   onPrint: () => void;
-  /** Mostra o total de registros sem contar (ja exibido pela animacao de conclusao). */
   instant?: boolean;
 }
 
@@ -24,7 +23,6 @@ export function HealthHero({ profile, findings, score, onPrint, instant = false 
       variants={fadeUp}
       className="relative overflow-hidden rounded-card bg-accent p-7 text-accent-fg shadow-[0_40px_90px_-40px_rgb(214_255_61/0.5)] sm:p-8"
     >
-      {/* Aneis concentricos decorativos */}
       <div aria-hidden className="pointer-events-none absolute -right-24 top-1/2 -translate-y-1/2">
         {[260, 360, 460].map((s) => (
           <span
@@ -35,7 +33,7 @@ export function HealthHero({ profile, findings, score, onPrint, instant = false 
         ))}
       </div>
 
-      <div className="relative flex flex-col justify-between gap-8 sm:flex-row sm:items-center">
+      <div className="relative flex flex-col justify-between gap-8 sm:flex-row sm:flex-wrap sm:items-center">
         <div className="flex flex-col gap-5">
           <p className="text-sm font-medium opacity-75">Registros analisados</p>
           <CountUp
@@ -43,7 +41,7 @@ export function HealthHero({ profile, findings, score, onPrint, instant = false 
             instant={instant}
             value={profile.row_count}
             duration={1.1}
-            className="text-6xl font-semibold leading-none tracking-tighter sm:text-8xl"
+            className="text-6xl font-semibold leading-none tracking-tighter sm:text-7xl 2xl:text-8xl"
           />
           <div className="flex flex-wrap gap-2 text-xs font-medium">
             <span className="rounded-full bg-black/10 px-3 py-1">{profile.column_count} colunas</span>
@@ -57,7 +55,7 @@ export function HealthHero({ profile, findings, score, onPrint, instant = false 
             transition={tweenSnap}
             className="focus-ring mt-2 inline-flex h-11 w-fit items-center gap-3 rounded-full bg-canvas pl-5 pr-1.5 text-sm font-medium text-fg"
           >
-            Imprimir laudo
+            Gerar relatório
             <span className="grid size-8 place-items-center rounded-full bg-accent text-accent-fg">
               <Printer className="size-3.5" strokeWidth={2} />
             </span>

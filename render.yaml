@@ -1,36 +1,44 @@
 services:
-  # 1. Frontend
-  - type: static
+  # 1. Frontend (site estatico: type web + runtime static; sem region/plan)
+  - type: web
     name: dataguard-frontend
+    runtime: static
     rootDir: frontend
-    buildCommand: npm install && npm run build
+    buildCommand: npm ci && npm run build
     staticPublishPath: dist
+    autoDeployTrigger: commit
     routes:
       - type: rewrite
         source: /*
         destination: /index.html
     envVars:
+      - key: NODE_VERSION
+        value: 22.12.0
       - key: VITE_API_URL
         value: https://dataguard-analysis-service.onrender.com/api
       - key: VITE_USE_MOCKS
         value: "false"
 
-  # 2. Analysis Service
+  # 2. Analysis Service (API publica / orquestrador)
   - type: web
     name: dataguard-analysis-service
-    env: python
+    runtime: python
     region: ohio
     plan: free
     rootDir: services/analysis-service
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeployTrigger: commit
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
       - key: ENVIRONMENT
         value: production
       - key: LOG_LEVEL
         value: INFO
       - key: DATABASE_URL
-        sync: false # Configurar com a URL do Supabase no Dashboard do Render
+        sync: false # URL do Supabase (ver comentario no fim do arquivo)
       - key: DATA_QUALITY_SERVICE_URL
         value: https://dataguard-data-quality-service.onrender.com
       - key: INTELLIGENCE_SERVICE_URL
@@ -39,37 +47,52 @@ services:
   # 3. Data Quality Service
   - type: web
     name: dataguard-data-quality-service
-    env: python
+    runtime: python
     region: ohio
     plan: free
     rootDir: services/data-quality-service
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeployTrigger: commit
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
       - key: ENVIRONMENT
         value: production
       - key: LOG_LEVEL
         value: INFO
       - key: DATABASE_URL
-        sync: false # Configurar com a URL do Supabase no Dashboard do Render
+        sync: false
 
   # 4. Intelligence Service
   - type: web
     name: dataguard-intelligence-service
-    env: python
+    runtime: python
     region: ohio
     plan: free
     rootDir: services/intelligence-service
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeployTrigger: commit
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
       - key: ENVIRONMENT
         value: production
       - key: LOG_LEVEL
         value: INFO
       - key: DATABASE_URL
-        sync: false # Configurar com a URL do Supabase no Dashboard do Render
+        sync: false
       - key: LLM_ENABLED
-        value: "false" # Mantém rules_only em produção gratuita ou altere para "true" com HF_TOKEN
+        value: "false" # rules_only; para IA, use "true" e configure HF_TOKEN no Dashboard
       - key: LLM_PROVIDER
         value: huggingface
+      - key: HF_TOKEN
+        sync: false # segredo: preencher so no Dashboard, nunca no Git
+
+# DATABASE_URL (Supabase): use a connection string do "Session pooler" (porta 5432)
+# ou a direta. O "Transaction pooler" (porta 6543) quebra o asyncpg
+# (prepared statements). O prefixo postgresql:// e convertido para
+# postgresql+asyncpg:// pelos servicos; se precisar de SSL, acrescente ?ssl=require.

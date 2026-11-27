@@ -13,16 +13,15 @@ const small = [
   { key: "failed", label: "Falhas", icon: OctagonAlert, tone: "text-danger" },
 ] as const;
 
-/** `unavailable`: a consulta falhou; mostra "—" em vez de um carregamento que nunca termina. */
 export function StatsRow({ stats, unavailable = false }: { stats: AnalysesStats | null; unavailable?: boolean }) {
   const navigate = useNavigate();
   const rate = stats && stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : null;
 
   return (
-    <motion.div variants={stagger(0.05)} initial="hidden" animate="show" className="grid gap-4 lg:grid-cols-12">
+    <motion.div variants={stagger(0.05)} initial="hidden" animate="show" className="grid gap-4 xl:grid-cols-12">
       <motion.div
         variants={fadeUp}
-        className="relative overflow-hidden rounded-card bg-accent p-7 text-accent-fg shadow-[0_40px_90px_-40px_rgb(214_255_61/0.45)] lg:col-span-5"
+        className="relative overflow-hidden rounded-card bg-accent p-7 text-accent-fg shadow-[0_40px_90px_-40px_rgb(214_255_61/0.45)] xl:col-span-5"
       >
         <div aria-hidden className="pointer-events-none absolute -right-20 top-1/2 -translate-y-1/2">
           {[220, 320].map((s) => (
@@ -33,7 +32,7 @@ export function StatsRow({ stats, unavailable = false }: { stats: AnalysesStats 
             />
           ))}
         </div>
-        <div className="relative flex items-center justify-between gap-6">
+        <div className="relative flex flex-wrap items-center justify-between gap-6">
           <div className="flex flex-col gap-4">
             <p className="text-sm font-medium opacity-75">Auditorias realizadas</p>
             {stats ? (
@@ -41,7 +40,7 @@ export function StatsRow({ stats, unavailable = false }: { stats: AnalysesStats 
             ) : unavailable ? (
               <span className="text-7xl font-semibold leading-none tracking-tighter opacity-40">—</span>
             ) : (
-              <span className="h-[4.5rem] w-24 animate-pulse-soft rounded-xl bg-black/10" />
+              <span className="h-18 w-24 animate-pulse-soft rounded-xl bg-black/10" />
             )}
             <motion.button
               type="button"
@@ -60,10 +59,10 @@ export function StatsRow({ stats, unavailable = false }: { stats: AnalysesStats 
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-3 gap-4 lg:col-span-7">
+      <div className="grid grid-cols-3 gap-4 xl:col-span-7">
         {small.map(({ key, label, icon: Icon, tone }) => (
           <Card key={key} className="flex flex-col justify-between gap-6 p-5">
-            <span className={`grid size-9 place-items-center rounded-xl bg-fg/[0.05] ${tone}`}>
+            <span className={`grid size-9 place-items-center rounded-xl bg-fg/5 ${tone}`}>
               <Icon className="size-4" strokeWidth={1.75} />
             </span>
             <div>

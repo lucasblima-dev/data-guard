@@ -5,17 +5,12 @@ import { CountUp } from "../../components/ui/CountUp";
 type Phase = "flood" | "hold" | "shrink";
 
 interface Props {
-  /** Registros analisados; null enquanto o relatorio carrega. */
   rows: number | null;
-  /** Relatorio resolvido sem dados: encerra sem mostrar numero. */
   failed: boolean;
-  /** O retangulo lima chegou ao hero: libera a cascata dos blocos. */
   onLand: () => void;
-  /** Pode desmontar o overlay. */
   onDone: () => void;
 }
 
-// Ritmo calmo: e uma analise, nao um efeito de impacto.
 const FLOOD_S = 1.4;
 const COUNT_S = 1.6;
 const PAUSE_AFTER_COUNT_MS = 900;
@@ -32,10 +27,6 @@ function readOrigin(): { x: number; y: number } {
   return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 }
 
-/**
- * Momento de conclusao: o lima preenche a tela a partir do ultimo passo, mostra o
- * total de registros e encolhe ate a posicao do hero. Clique ou Esc pulam.
- */
 export function CompletionReveal({ rows, failed, onLand, onDone }: Props) {
   const [origin] = useState(readOrigin);
   const [phase, setPhase] = useState<Phase>("flood");
@@ -49,7 +40,6 @@ export function CompletionReveal({ rows, failed, onLand, onDone }: Props) {
     onDone();
   }, [onLand, onDone]);
 
-  // Trava o scroll e leva a pagina ao topo (onde o hero esta) enquanto o overlay cobre tudo.
   useEffect(() => {
     window.scrollTo(0, 0);
     const prev = document.body.style.overflow;
@@ -67,7 +57,6 @@ export function CompletionReveal({ rows, failed, onLand, onDone }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [finish]);
 
-  // Segura o numero na tela e, so entao, encolhe ate o hero.
   useEffect(() => {
     if (phase !== "hold") return;
     if (failed) {
@@ -115,7 +104,7 @@ export function CompletionReveal({ rows, failed, onLand, onDone }: Props) {
         if (phase === "flood") setPhase("hold");
         else if (phase === "shrink") finish();
       }}
-      className="fixed inset-0 z-[60] grid cursor-pointer place-items-center bg-accent text-accent-fg"
+      className="fixed inset-0 z-60 grid cursor-pointer place-items-center bg-accent text-accent-fg"
     >
       <span className="sr-only">
         Análise concluída{rows !== null ? `, ${rows} registros analisados` : ""}.

@@ -3,6 +3,7 @@ import { FileSpreadsheet, UploadCloud, X } from "lucide-react";
 import { useCallback, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import { easeOutExpo, springSnappy, springSoft } from "../../lib/motion";
 import { formatBytes } from "../../lib/format";
+import { MAX_CSV_MB } from "./validateCsv";
 
 interface DropzoneProps {
   file: File | null;
@@ -91,14 +92,14 @@ export function Dropzone({ file, disabled = false, onSelect, onClear }: Dropzone
         <div className="relative space-y-1">
           <p className="text-sm font-medium">{dragging ? "Solte para selecionar" : "Arraste seu dataset aqui"}</p>
           <p className="text-xs text-fg-subtle">
-            ou <span className="text-accent-ink">escolha do computador</span> · CSV até 100 MB
+            ou <span className="text-accent-ink">escolha no dispositivo</span> · CSV até {MAX_CSV_MB} MB
           </p>
         </div>
 
         <input
           ref={inputRef}
           type="file"
-          accept=".csv,text/csv"
+          accept=".csv,text/csv,text/comma-separated-values,application/csv,application/vnd.ms-excel"
           className="hidden"
           disabled={disabled}
           onClick={(e) => e.stopPropagation()}

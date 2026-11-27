@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     STORAGE_DIR: str = str(Path(__file__).resolve().parent.parent.parent.parent / "storage")
     MAX_FILE_SIZE_MB: int = 25
     INTERNAL_TIMEOUT_SECONDS: float = 10.0
+    SYNTHESIZE_TIMEOUT_SECONDS: float = 30.0
 
     MESSAGING_ENABLED: bool = False
     RABBITMQ_URL: str = ""

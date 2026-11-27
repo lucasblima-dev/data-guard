@@ -50,7 +50,7 @@ flowchart LR
     U -->|"HTTPS"| FE
     FE -->|"REST /api<br/>única porta de entrada"| AS
     AS -->|"HTTP POST /internal/process<br/>timeout 10 s"| DQ
-    AS -->|"HTTP POST /internal/synthesize<br/>timeout 10 s"| IS
+    AS -->|"HTTP POST /internal/synthesize<br/>timeout 30 s"| IS
     AS -.->|"HTTP GET /internal/quality<br/>/internal/reports"| DQ
     AS -.-> IS
 
@@ -144,7 +144,7 @@ O volume `storage` permite o compartilhamento seguro do CSV entre `analysis-serv
 
 ### 3.3 Intelligence Service (Motor de Síntese Técnica e Laudo)
 
-- **Porta interna:** Expõe endpoints `/internal/synthesize` e `/internal/reports/{id}`.
+- **Porta interna:** Expõe endpoints `/internal/synthesize`, `/internal/reports/{id}` e `/internal/llm/probe` (diagnóstico de conectividade com o provedor ativo).
 - **Entrada estrita:** Recebe exclusivamente o sumário de colunas e a lista de `QualityFinding`.
 - **Estratégia híbrida:** Aciona o provedor configurado (Hugging Face Serverless API, Ollama na rede local ou motor de regras local).
 - **Saída padronizada:** Gera sumário executivo, interpretação contextual de cada achado, recomendações técnicas de saneamento e limitações observadas.
@@ -252,7 +252,7 @@ flowchart TD
     B -->|"Sim"| C{"GET data-quality /quality/id<br/>retornou 200?"}
     C -->|"Não"| F2["status = falhou<br/>error_code = QUALITY_DETAILS_FETCH_FAILED"]
     C -->|"Sim"| D["status = gerando_relatorio"]
-    D --> E{"POST intelligence /synthesize<br/>respondeu 200 em até 10 s?"}
+    D --> E{"POST intelligence /synthesize<br/>respondeu 200 em até 30 s?"}
     E -->|"Não"| F3["status = falhou<br/>error_code = INTELLIGENCE_SERVICE_UNAVAILABLE"]
     E -->|"Sim"| OK["status = concluida"]
 
@@ -320,9 +320,9 @@ flowchart TD
 
 ### 7.1 Provedores Suportados
 
-1. **Hugging Face Serverless API (Padrão em Nuvem):**
+1. **Hugging Face Inference Providers Router (Padrão em Nuvem):**
    - **Modelo:** `Qwen/Qwen2.5-7B-Instruct`.
-   - **Comunicação:** HTTPS via API Serverless gratuita utilizando token de serviço (`HF_TOKEN`).
+   - **Comunicação:** HTTPS via endpoint compatível com Chat Completions (`https://router.huggingface.co/v1/chat/completions`) utilizando token de serviço (`HF_TOKEN` com permissão *Make calls to Inference Providers*).
    - **Controle de Timeout:** 15 segundos.
    - **Tolerância a Falhas:** Captura status 429 (rate-limit) e 503 (cold start), acionando o fallback local sem quebrar o job.
 2. **Ollama em Servidor LAN (GPU de Alta Performance):**

@@ -229,6 +229,7 @@ class OrchestratorService:
                     is_resp = await client.post(
                         f"{is_url}/synthesize",
                         json=synth_payload,
+                        timeout=settings.SYNTHESIZE_TIMEOUT_SECONDS,
                     )
                     if is_resp.status_code != 200:
                         raise Exception(f"intelligence-service respondeu {is_resp.status_code}: {is_resp.text}")

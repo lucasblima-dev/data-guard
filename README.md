@@ -460,21 +460,34 @@ LLM_ENABLED=true
 LLM_PROVIDER=huggingface
 HF_TOKEN=hf_seuTokenAqui
 HF_MODEL_ID=Qwen/Qwen2.5-7B-Instruct
+HF_API_URL=https://router.huggingface.co/v1/chat/completions
 ```
 
-### Cenário 2: Uso com Servidor Ollama na Rede Local (com GPU)
+*(O `HF_TOKEN` deve ser criado em `huggingface.co/settings/tokens` como Fine-grained com a permissão **Make calls to Inference Providers** habilitada.)*
+
+### Cenário 2: Uso com Servidor Ollama Local ou na Rede Local (com GPU)
 
 ```dotenv
 LLM_ENABLED=true
 LLM_PROVIDER=ollama
-OLLAMA_BASE_URL=http://192.168.1.100:11434
+OLLAMA_BASE_URL=http://host.docker.internal:11434
 OLLAMA_MODEL=qwen2.5:7b
 ```
+
+*(Em laboratório/LAN com servidor GPU dedicado, aponte `OLLAMA_BASE_URL` para `http://<IP_DA_MAQUINA_NA_LAN>:11434`.)*
 
 ### Cenário 3: Modo 100% Determinístico (Sem IA / Avaliação Offline)
 
 ```dotenv
 LLM_ENABLED=false
+```
+
+### Diagnóstico Rápido do Modelo LLM
+
+Para validar se o modelo configurado está respondendo diretamente (`llm_assisted`) ou verificar o motivo exato de eventual fallback, execute:
+
+```bash
+python scripts/test_llm.py --e2e
 ```
 
 > [!IMPORTANT]

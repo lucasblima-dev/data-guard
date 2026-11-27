@@ -84,6 +84,13 @@ app.include_router(v1_router, prefix="/internal")
     response_model=dict[str, str],
 )
 async def health_check() -> dict[str, str]:
+    model_id = (
+        settings.HF_MODEL_ID
+        if settings.LLM_PROVIDER == "huggingface"
+        else settings.OLLAMA_MODEL
+        if settings.LLM_PROVIDER == "ollama"
+        else "rules_only"
+    )
     return {
         "status": "healthy",
         "service": "intelligence-service",
@@ -91,6 +98,8 @@ async def health_check() -> dict[str, str]:
         "environment": settings.ENVIRONMENT,
         "llm_provider": settings.LLM_PROVIDER,
         "llm_enabled": str(settings.LLM_ENABLED),
+        "llm_model": model_id,
+        "hf_token_configured": str(bool(settings.HF_TOKEN)),
         "messaging_enabled": str(settings.MESSAGING_ENABLED),
         "messaging_connected": str(messaging_broker.is_connected),
     }

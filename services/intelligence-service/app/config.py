@@ -30,9 +30,10 @@ class Settings(BaseSettings):
     LLM_ENABLED: bool = True
     LLM_PROVIDER: str = "huggingface"  # "huggingface", "ollama" ou "disabled"
 
-    # HuggingFace
+    # HuggingFace (Inference Providers Router — compatível com Chat Completions)
     HF_TOKEN: str = ""
     HF_MODEL_ID: str = "Qwen/Qwen2.5-7B-Instruct"
+    HF_API_URL: str = "https://router.huggingface.co/v1/chat/completions"
     HF_TIMEOUT_SECONDS: float = 15.0
 
     # Ollama na rede local
@@ -41,6 +42,31 @@ class Settings(BaseSettings):
     OLLAMA_TIMEOUT_SECONDS: float = 25.0
 
     CORS_ORIGINS: list[str] = ["*"]
+
+    @field_validator("LLM_PROVIDER", mode="after")
+    @classmethod
+    def normalize_provider(cls, v: str) -> str:
+        return v.strip().lower()
+
+    @field_validator("HF_TOKEN", mode="after")
+    @classmethod
+    def sanitize_hf_token(cls, v: str) -> str:
+        cleaned = v.strip().strip('"').strip("'").strip()
+        if cleaned in {"", "SEU_TOKEN_AQUI", "hf_seuTokenAqui"}:
+            return ""
+        return cleaned
+
+    @field_validator("HF_API_URL", mode="after")
+    @classmethod
+    def normalize_hf_api_url(cls, v: str) -> str:
+        cleaned = v.strip().strip('"').strip("'")
+        if (
+            not cleaned
+            or "api-inference.huggingface.co" in cleaned
+            or "router.huggingface.co/hf-inference/v1/chat/completions" in cleaned
+        ):
+            return "https://router.huggingface.co/v1/chat/completions"
+        return cleaned
 
     @field_validator("DATABASE_URL", mode="after")
     @classmethod

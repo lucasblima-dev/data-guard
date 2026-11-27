@@ -56,3 +56,20 @@ class AnalysisReportResponse(BaseModel):
     generated_at: datetime = Field(..., description="Data e hora de emissão do laudo.")
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class LLMProbeResponse(BaseModel):
+    llm_enabled: bool = Field(..., description="Indica se LLM_ENABLED está ativo.")
+    configured_provider: str = Field(..., description="Provedor configurado em LLM_PROVIDER.")
+    model_id: str = Field(..., description="Identificador do modelo ativo para o provedor selecionado.")
+    direct_provider_ok: bool = Field(
+        ...,
+        description="True se o provedor de IA respondeu diretamente sem acionar fallback.",
+    )
+    generation_mode: str = Field(..., description="Modo efetivo obtido: llm_assisted ou rules_only.")
+    latency_ms: float = Field(..., description="Tempo total gasto na síntese de teste em milissegundos.")
+    error_detail: str | None = Field(
+        default=None,
+        description="Causa exata da falha caso o provedor principal tenha acionado fallback.",
+    )
+    sample_report: ReportLLMResponse = Field(..., description="Amostra de relatório sintetizado no teste.")

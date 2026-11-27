@@ -81,8 +81,11 @@ services:
       LLM_PROVIDER: ${LLM_PROVIDER:-huggingface}
       HF_TOKEN: ${HF_TOKEN:-}
       HF_MODEL_ID: ${HF_MODEL_ID:-Qwen/Qwen2.5-7B-Instruct}
+      HF_API_URL: ${HF_API_URL:-https://router.huggingface.co/v1/chat/completions}
+      HF_TIMEOUT_SECONDS: ${HF_TIMEOUT_SECONDS:-15}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
+      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-25}
     extra_hosts:
       - "host.docker.internal:host-gateway" # permite alcancar um Ollama rodando no host
     ports:

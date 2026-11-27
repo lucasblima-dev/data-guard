@@ -360,6 +360,8 @@ data-guard/
    cp .env.example .env
    ```
 
+   Confira no `.env` as variáveis obrigatórias `POSTGRES_PASSWORD`, `RABBITMQ_USER` e `RABBITMQ_PASSWORD` (troque os valores de exemplo). Sem elas, o `docker compose` não sobe.
+
 3. Construa as imagens e inicialize a interface, os serviços de backend e o banco:
 
    ```bash
@@ -439,7 +441,10 @@ data-guard/
 
 ## Variáveis de Ambiente e Alternância de Provedores
 
-O arquivo `.env` controla os parâmetros de execução e permite alternar instantaneamente o provedor de inteligência artificial:
+O arquivo `.env` controla os parâmetros de execução do ambiente. Ele é criado a partir do `.env.example` (`cp .env.example .env`) e **não é versionado**.
+
+> [!IMPORTANT]
+> `POSTGRES_PASSWORD`, `RABBITMQ_USER` e `RABBITMQ_PASSWORD` são **obrigatórias**: o `docker compose` se recusa a subir, com uma mensagem indicando a variável ausente, se alguma delas não estiver definida. Troque os valores de exemplo por senhas suas.
 
 ### Mensageria (RabbitMQ)
 
@@ -451,9 +456,15 @@ RABBITMQ_EXCHANGE=dataguard.exchange
 RABBITMQ_DLX=dataguard.dlx
 ```
 
+Dentro do Docker Compose, a `RABBITMQ_URL` de cada serviço é montada automaticamente a partir de `RABBITMQ_USER` e `RABBITMQ_PASSWORD`. A variável `RABBITMQ_URL` do `.env` só é usada ao rodar um serviço fora do Docker.
+
 *(Com `MESSAGING_ENABLED=false`, o `analysis-service` volta ao pipeline HTTP interno usado no deploy em nuvem sem broker.)*
 
-### Cenário 1: Uso com Hugging Face (Nuvem / Sem GPU)
+### Provedor de Inteligência Artificial
+
+A alternância entre os provedores é feita apenas por variáveis de ambiente, sem alterar código:
+
+#### Cenário 1: Uso com Hugging Face (Nuvem / Sem GPU)
 
 ```dotenv
 LLM_ENABLED=true
@@ -465,7 +476,7 @@ HF_API_URL=https://router.huggingface.co/v1/chat/completions
 
 *(O `HF_TOKEN` deve ser criado em `huggingface.co/settings/tokens` como Fine-grained com a permissão **Make calls to Inference Providers** habilitada.)*
 
-### Cenário 2: Uso com Servidor Ollama Local ou na Rede Local (com GPU)
+#### Cenário 2: Uso com Servidor Ollama Local ou na Rede Local (com GPU)
 
 ```dotenv
 LLM_ENABLED=true
@@ -476,13 +487,13 @@ OLLAMA_MODEL=qwen2.5:7b
 
 *(Em laboratório/LAN com servidor GPU dedicado, aponte `OLLAMA_BASE_URL` para `http://<IP_DA_MAQUINA_NA_LAN>:11434`.)*
 
-### Cenário 3: Modo 100% Determinístico (Sem IA / Avaliação Offline)
+#### Cenário 3: Modo 100% Determinístico (Sem IA / Avaliação Offline)
 
 ```dotenv
 LLM_ENABLED=false
 ```
 
-### Diagnóstico Rápido do Modelo LLM
+#### Diagnóstico Rápido do Modelo LLM
 
 Para validar se o modelo configurado está respondendo diretamente (`llm_assisted`) ou verificar o motivo exato de eventual fallback, execute:
 

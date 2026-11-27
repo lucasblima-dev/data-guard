@@ -400,7 +400,7 @@ def main() -> int:
                 pass
 
     print("\n" + "=" * 68)
-    print("TODOS OS 5 CenárioS DE MENSAGERIA PASSARAM COM SUCESSO!")
+    print("TODOS OS 5 CENARIOS DE MENSAGERIA PASSARAM COM SUCESSO!")
     print("=" * 68)
     return 0
 
